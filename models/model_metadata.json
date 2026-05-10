@@ -1,0 +1,42 @@
+{
+  "model_type": "XGBoost Regressor",
+  "race": "2024 Bahrain Grand Prix",
+  "mae_seconds": 0.296,
+  "r2_score": 0.8698,
+  "training_samples": 819,
+  "test_samples": 205,
+  "features": [
+    "TyreLife",
+    "TyreLifeSquared",
+    "CompoundEncoded",
+    "DriverEncoded",
+    "CompoundAge",
+    "LapNumber"
+  ],
+  "compounds": [
+    "HARD",
+    "SOFT"
+  ],
+  "drivers": [
+    "ALB",
+    "ALO",
+    "BOT",
+    "GAS",
+    "HAM",
+    "HUL",
+    "LEC",
+    "MAG",
+    "NOR",
+    "OCO",
+    "PER",
+    "PIA",
+    "RIC",
+    "RUS",
+    "SAI",
+    "SAR",
+    "STR",
+    "TSU",
+    "VER",
+    "ZHO"
+  ]
+}
