@@ -41,11 +41,10 @@ MODELS_DIR = ROOT / "models"
 # ── Load FastF1 + Models (cached) ────────────────────────
 @st.cache_resource
 def load_session():
-    # Create cache directory if it doesn't exist (for cloud deployment)
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     fastf1.Cache.enable_cache(str(CACHE_DIR))
     session = fastf1.get_session(2024, 'Bahrain', 'R')
-    session.load()
+    session.load(laps=True, telemetry=True, weather=False, messages=False)
     return session
 
 @st.cache_resource
