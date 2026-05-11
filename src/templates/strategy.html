@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+{% set active = "strategy" %}
+{% block content %}
+<h1 class="text-3xl font-bold mb-2" style="color:#FF1E1E;">🎯 Strategy Optimizer</h1>
+<p class="text-gray-400 mb-6">Brute-force pit strategy simulation using ML tire degradation model</p>
+<div class="card p-6 mb-6">
+    <div class="grid grid-cols-3 gap-4 mb-4">
+        <div>
+            <label class="text-gray-400 text-sm block mb-2">🏎️ Driver</label>
+            <select id="driver">
+                {% for d in drivers %}<option value="{{ d }}" {% if d == 'HAM' %}selected{% endif %}>{{ d }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="text-gray-400 text-sm block mb-2">🛞 Stint 1 Compound</label>
+            <select id="stint1">
+                {% for c in compounds %}<option value="{{ c }}" {% if c == 'SOFT' %}selected{% endif %}>{{ c }}</option>{% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="text-gray-400 text-sm block mb-2">🛞 Stint 2 Compound</label>
+            <select id="stint2">
+                {% for c in compounds %}<option value="{{ c }}" {% if c == 'HARD' %}selected{% endif %}>{{ c }}</option>{% endfor %}
+            </select>
+        </div>
+    </div>
+    <div class="grid grid-cols-4 gap-4 mb-6">
+        <div><label class="text-gray-400 text-sm block mb-2">🏁 Race Length</label><input type="number" id="race_length" value="57" min="30" max="80"></div>
+        <div><label class="text-gray-400 text-sm block mb-2">⏱️ Pit Loss (s)</label><input type="number" id="pit_loss" value="22.0" min="15" max="30" step="0.5"></div>
+        <div><label class="text-gray-400 text-sm block mb-2">Min Pit Lap</label><input type="number" id="pit_min" value="10" min="5" max="50"></div>
+        <div><label class="text-gray-400 text-sm block mb-2">Max Pit Lap</label><input type="number" id="pit_max" value="45" min="10" max="55"></div>
+    </div>
+    <button onclick="runOptimizer()" class="btn-primary px-12 py-3 font-bold text-lg w-full">🚀 RUN OPTIMIZER</button>
+</div>
+<div id="loading" style="display:none;" class="text-center py-12">
+    <div class="text-4xl mb-4">🏎️</div>
+    <p class="text-gray-400 text-lg">Simulating strategies...</p>
+</div>
+<div id="results" style="display:none;">
+    <div class="card p-6 mb-6">
+        <h2 class="text-xl font-bold mb-4" style="color:#00d2ff;">🏆 Optimal Strategy</h2>
+        <div class="grid grid-cols-4 gap-4">
+            <div class="metric-card p-4 text-center"><p class="text-gray-400 text-xs mb-1">Optimal Pit Lap</p><p id="opt_pit" class="text-3xl font-bold text-green-400">-</p></div>
+            <div class="metric-card p-4 text-center"><p class="text-gray-400 text-xs mb-1">Stint 1</p><p id="opt_s1" class="text-xl font-bold" style="color:#00d2ff;">-</p></div>
+            <div class="metric-card p-4 text-center"><p class="text-gray-400 text-xs mb-1">Stint 2</p><p id="opt_s2" class="text-xl font-bold" style="color:#00d2ff;">-</p></div>
+            <div class="metric-card p-4 text-center"><p class="text-gray-400 text-xs mb-1">Total Race Time</p><p id="opt_time" class="text-2xl font-bold text-yellow-400">-</p></div>
+        </div>
+    </div>
+    <div class="card p-4 mb-6 flex gap-8 items-center">
+        <div class="text-center"><p class="text-gray-400 text-sm">🎯 Pit Window</p><p id="window" class="text-xl font-bold text-green-400">-</p><p class="text-gray-500 text-xs">5-lap flexibility</p></div>
+        <div class="text-center"><p class="text-gray-400 text-sm">⚠️ Risk (Early)</p><p id="risk_early" class="text-lg font-bold text-red-400">-</p><p class="text-gray-500 text-xs">Costs >1s</p></div>
+        <div class="text-center"><p class="text-gray-400 text-sm">⚠️ Risk (Late)</p><p id="risk_late" class="text-lg font-bold text-red-400">-</p><p class="text-gray-500 text-xs">Costs >1s</p></div>
+    </div>
+    <div class="card p-6 mb-6"><div id="strategy_chart" style="width:100%;height:450px;"></div></div>
+    <div class="card p-6">
+        <h2 class="text-xl font-bold mb-4" style="color:#00d2ff;">📊 Top 5 Strategies</h2>
+        <table>
+            <thead><tr><th>Rank</th><th>Pit Lap</th><th>Stint 1 (s)</th><th>Stint 2 (s)</th><th>Total (s)</th></tr></thead>
+            <tbody id="top5_table"></tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function runOptimizer() {
+    const s1 = document.getElementById('stint1').value;
+    const s2 = document.getElementById('stint2').value;
+    if (s1 === s2) { alert('⚠️ Compounds must differ!'); return; }
+    document.getElementById('results').style.display = 'none';
+    document.getElementById('loading').style.display = 'block';
+    const payload = {
+        driver: document.getElementById('driver').value,
+        stint1: s1, stint2: s2,
+        race_length: parseInt(document.getElementById('race_length').value),
+        pit_loss: parseFloat(document.getElementById('pit_loss').value),
+        pit_min: parseInt(document.getElementById('pit_min').value),
+        pit_max: parseInt(document.getElementById('pit_max').value)
+    };
+    try {
+        const response = await fetch('/strategy/optimize', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (data.error) { alert(data.error); document.getElementById('loading').style.display = 'none'; return; }
+        document.getElementById('opt_pit').textContent = `Lap ${data.optimal.pit_lap}`;
+        document.getElementById('opt_s1').textContent = `${data.optimal.pit_lap} laps ${payload.stint1}`;
+        document.getElementById('opt_s2').textContent = `${payload.race_length - data.optimal.pit_lap} laps ${payload.stint2}`;
+        document.getElementById('opt_time').textContent = `${data.optimal.total.toFixed(1)}s`;
+        document.getElementById('window').textContent = `Lap ${data.pit_window_start}–${data.pit_window_end}`;
+        document.getElementById('risk_early').textContent = `Before Lap ${data.pit_window_start}`;
+        document.getElementById('risk_late').textContent = `After Lap ${data.pit_window_end}`;
+        const chartData = JSON.parse(data.chart_json);
+        Plotly.react('strategy_chart', chartData.data, chartData.layout);
+        let tableHTML = '';
+        data.top5.forEach((s, i) => {
+            tableHTML += `<tr ${i === 0 ? 'style="background:#00ff8822;"' : ''}>
+                <td class="font-bold ${i === 0 ? 'text-green-400' : 'text-gray-400'}">${i === 0 ? '🏆' : i+1}</td>
+                <td class="font-bold text-white">Lap ${s.pit_lap}</td>
+                <td>${s.stint1_time}</td><td>${s.stint2_time}</td>
+                <td class="font-bold ${i === 0 ? 'text-green-400' : ''}">${s.total}</td></tr>`;
+        });
+        document.getElementById('top5_table').innerHTML = tableHTML;
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('results').style.display = 'block';
+    } catch(err) {
+        alert('Error: ' + err.message);
+        document.getElementById('loading').style.display = 'none';
+    }
+}
+</script>
+{% endblock %}
