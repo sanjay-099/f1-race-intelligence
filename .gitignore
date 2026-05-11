@@ -5,5 +5,4 @@ __pycache__/
 .env
 data/cache/
 *.ipynb_checkpoints
-models/*.pkl
 .antigravity/
