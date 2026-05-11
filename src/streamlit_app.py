@@ -39,7 +39,6 @@ CACHE_DIR = ROOT / "data" / "cache"
 MODELS_DIR = ROOT / "models"
 
 # ── Load FastF1 + Models (cached) ────────────────────────
-@st.cache_resource
 def load_session():
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     fastf1.Cache.enable_cache(str(CACHE_DIR))
