@@ -1,0 +1,10 @@
+f1-env/
+__pycache__/
+*.pyc
+.git/
+.DS_Store
+.env
+*.ipynb_checkpoints
+notebooks/
+.antigravity/
+AGENTS.md
