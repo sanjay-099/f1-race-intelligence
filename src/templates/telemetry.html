@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% set active = "telemetry" %}
+{% block content %}
+<h1 class="text-3xl font-bold mb-2" style="color:#FF1E1E;">📡 Telemetry Analysis</h1>
+<p class="text-gray-400 mb-6">Compare driver telemetry from their fastest lap</p>
+<div class="card p-6 mb-6">
+    <form method="get" action="/telemetry" class="flex items-end gap-4">
+        <div class="flex-1">
+            <label class="text-gray-400 text-sm block mb-2">Driver 1</label>
+            <select name="driver1">
+                {% for d in drivers %}
+                <option value="{{ d }}" {% if d == driver1 %}selected{% endif %}>{{ d }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex-1">
+            <label class="text-gray-400 text-sm block mb-2">Driver 2 (comparison)</label>
+            <select name="driver2">
+                <option value="None" {% if driver2 == 'None' %}selected{% endif %}>None</option>
+                {% for d in drivers %}
+                <option value="{{ d }}" {% if d == driver2 %}selected{% endif %}>{{ d }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn-primary px-8 py-2 font-bold">🔍 Compare</button>
+    </form>
+</div>
+{% if stats %}
+<div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="metric-card p-4 text-center"><p class="text-gray-400 text-xs mb-1">Lap Time</p><p class="text-2xl font-bold" style="color:#00d2ff;">{{ stats.lap_time }}</p></div>
+    <div class="metric-card p-4 text-center"><p class="text-gray-400 text-xs mb-1">Lap Number</p><p class="text-2xl font-bold" style="color:#00d2ff;">{{ stats.lap_number }}</p></div>
+    <div class="metric-card p-4 text-center"><p class="text-gray-400 text-xs mb-1">Compound</p><p class="text-2xl font-bold" style="color:#00d2ff;">{{ stats.compound }}</p></div>
+    <div class="metric-card p-4 text-center"><p class="text-gray-400 text-xs mb-1">Max Speed</p><p class="text-2xl font-bold" style="color:#00d2ff;">{{ stats.max_speed }} km/h</p></div>
+</div>
+{% if stats.driver2 is defined %}
+<div class="card p-4 mb-6 flex gap-8 items-center">
+    <div class="text-center">
+        <p class="text-gray-400 text-sm">Time Delta</p>
+        <p class="text-2xl font-bold {% if '-' in stats.delta %}text-green-400{% else %}text-red-400{% endif %}">{{ stats.delta }}s</p>
+    </div>
+    <div class="text-center"><p class="text-gray-400 text-sm">{{ stats.driver1 }} Max Speed</p><p class="text-xl font-bold text-blue-400">{{ stats.max_speed }} km/h</p></div>
+    <div class="text-center"><p class="text-gray-400 text-sm">{{ stats.driver2 }} Max Speed</p><p class="text-xl font-bold text-red-400">{{ stats.max_speed2 }} km/h</p></div>
+</div>
+{% endif %}
+{% endif %}
+<div class="card p-6">
+    <div id="tel_chart" style="width:100%;height:700px;"></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    const chartData = {{ chart_json | safe }};
+    if (chartData && chartData.data && chartData.data.length > 0) {
+        Plotly.react('tel_chart', chartData.data, chartData.layout);
+    }
+</script>
+{% endblock %}

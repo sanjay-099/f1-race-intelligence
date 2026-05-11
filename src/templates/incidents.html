@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% set active = "incidents" %}
+{% block content %}
+<h1 class="text-3xl font-bold mb-2" style="color:#FF1E1E;">🚨 Incident Detection Engine</h1>
+<p class="text-gray-400 mb-6">Dual-method ML anomaly detection: Statistical baselining + Isolation Forest</p>
+<div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="metric-card p-6 text-center"><p class="text-gray-400 text-sm mb-1">Laps Analyzed</p><p class="text-3xl font-bold" style="color:#00d2ff;">{{ total_laps }}</p></div>
+    <div class="metric-card p-6 text-center"><p class="text-gray-400 text-sm mb-1">Incidents</p><p class="text-3xl font-bold text-red-400">{{ total_incidents }}</p></div>
+    <div class="metric-card p-6 text-center"><p class="text-gray-400 text-sm mb-1">Detection Rate</p><p class="text-3xl font-bold text-yellow-400">{{ detection_rate }}%</p></div>
+    <div class="metric-card p-6 text-center"><p class="text-gray-400 text-sm mb-1">Drivers Flagged</p><p class="text-3xl font-bold text-orange-400">{{ drivers_flagged }}</p></div>
+</div>
+<div class="card p-6 mb-6">
+    <div id="inc_chart" style="width:100%;height:750px;"></div>
+</div>
+<div class="card p-6">
+    <h2 class="text-xl font-bold mb-4" style="color:#00d2ff;">📋 Incident Report</h2>
+    <table>
+        <thead>
+            <tr><th>Driver</th><th>Lap</th><th>Lap Time (s)</th><th>Compound</th><th>Tyre Age</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+            {% for row in incidents %}
+            <tr>
+                <td class="font-bold text-white">{{ row.Driver }}</td>
+                <td>{{ row.LapNumber }}</td>
+                <td>{{ row.LapTimeSeconds }}</td>
+                <td>
+                    <span style="padding:2px 8px; border-radius:4px; font-size:12px; font-weight:bold;
+                        {% if row.Compound == 'SOFT' %}background:#7f1d1d; color:#fca5a5;
+                        {% elif row.Compound == 'HARD' %}background:#374151; color:#d1d5db;
+                        {% else %}background:#713f12; color:#fde68a;{% endif %}">
+                        {{ row.Compound }}
+                    </span>
+                </td>
+                <td>{{ row.TyreLife }} laps</td>
+                <td><span style="background:#7f1d1d22; color:#FF1E1E; border:1px solid #FF1E1E44; border-radius:6px; padding:2px 8px; font-size:12px;">🚨 Flagged</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    const chartData = {{ chart_json | safe }};
+    Plotly.react('inc_chart', chartData.data, chartData.layout);
+</script>
+{% endblock %}

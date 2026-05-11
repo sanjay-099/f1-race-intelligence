@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Race Intelligence</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <style>
+        body { background-color: #0e1117; color: #ffffff; font-family: 'Inter', sans-serif; }
+        .nav-link { transition: all 0.2s; padding-bottom: 4px; }
+        .nav-link:hover { color: #00d2ff; border-bottom: 2px solid #00d2ff; }
+        .nav-active { color: #00d2ff !important; border-bottom: 2px solid #00d2ff; }
+        .card { background: #16213e; border: 1px solid #1a1a2e; border-radius: 12px; }
+        .metric-card { background: #1a1a2e; border: 1px solid #00d2ff33; border-radius: 10px; }
+        .btn-primary { background: #FF1E1E; color: white; border-radius: 8px; transition: all 0.2s; cursor: pointer; }
+        .btn-primary:hover { background: #cc0000; transform: translateY(-1px); }
+        select, input[type="number"] { 
+            background: #1a1a2e !important; 
+            color: white !important; 
+            border: 1px solid #00d2ff44 !important; 
+            border-radius: 8px;
+            padding: 8px 12px;
+            width: 100%;
+        }
+        table { border-collapse: collapse; width: 100%; }
+        th { background: #1a1a2e; color: #00d2ff; padding: 12px; text-align: left; font-size: 14px; }
+        td { padding: 10px 12px; border-bottom: 1px solid #1a1a2e; font-size: 14px; }
+        tr:hover td { background: #16213e; }
+    </style>
+</head>
+<body>
+    <nav style="background:#0e1117; border-bottom: 1px solid #1a1a2e;" class="px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/3/33/F1.svg" height="28" style="height:28px;" alt="F1">
+            <span class="text-white font-bold text-lg">Race Intelligence</span>
+        </div>
+        <div class="flex gap-8">
+            <a href="/" class="nav-link text-gray-300 font-medium {% if active == 'home' %}nav-active{% endif %}">🏠 Overview</a>
+            <a href="/telemetry" class="nav-link text-gray-300 font-medium {% if active == 'telemetry' %}nav-active{% endif %}">📡 Telemetry</a>
+            <a href="/incidents" class="nav-link text-gray-300 font-medium {% if active == 'incidents' %}nav-active{% endif %}">🚨 Incidents</a>
+            <a href="/strategy" class="nav-link text-gray-300 font-medium {% if active == 'strategy' %}nav-active{% endif %}">🎯 Strategy</a>
+            <a href="/docs" class="nav-link text-gray-300 font-medium" target="_blank">⚙️ API</a>
+        </div>
+        <div class="text-gray-500 text-sm">Built by <span class="text-blue-400 font-medium">Sanjay Chowdary</span></div>
+    </nav>
+    <main class="max-w-7xl mx-auto px-6 py-8">
+        {% block content %}{% endblock %}
+    </main>
+    <footer style="border-top: 1px solid #1a1a2e;" class="mt-12 py-6 text-center text-gray-500 text-sm">
+        F1 Race Intelligence System | Powered by FastF1 + XGBoost + FastAPI |
+        <a href="https://github.com/sanjay-099/f1-race-intelligence" class="text-blue-400 ml-1">GitHub</a>
+    </footer>
+    {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% set active = "home" %}
+{% block content %}
+<div class="mb-8">
+    <h1 class="text-4xl font-bold mb-2" style="color:#FF1E1E;">🏎️ F1 Race Intelligence System</h1>
+    <p class="text-gray-400 text-lg">Real-time race analytics powered by FastF1 telemetry + Machine Learning</p>
+</div>
+<div class="card p-4 mb-8 flex items-center justify-between">
+    <div class="flex items-center gap-6">
+        <div><p class="text-gray-400 text-sm">Race</p><p class="text-white font-bold text-lg">{{ event_name }}</p></div>
+        <div class="w-px h-10 bg-gray-700"></div>
+        <div><p class="text-gray-400 text-sm">Year</p><p class="text-white font-bold text-lg">{{ year }}</p></div>
+        <div class="w-px h-10 bg-gray-700"></div>
+        <div><p class="text-gray-400 text-sm">Circuit</p><p class="text-white font-bold text-lg">{{ location }}</p></div>
+        <div class="w-px h-10 bg-gray-700"></div>
+        <div><p class="text-gray-400 text-sm">Date</p><p class="text-white font-bold text-lg">{{ date }}</p></div>
+    </div>
+    <div style="background:#14532d; color:#4ade80;" class="px-4 py-2 rounded-lg text-sm font-medium">✅ Data Loaded</div>
+</div>
+<div class="grid grid-cols-4 gap-4 mb-8">
+    <div class="metric-card p-6 text-center"><p class="text-gray-400 text-sm mb-1">Total Laps</p><p class="text-3xl font-bold" style="color:#00d2ff;">{{ total_laps }}</p></div>
+    <div class="metric-card p-6 text-center"><p class="text-gray-400 text-sm mb-1">Drivers</p><p class="text-3xl font-bold" style="color:#00d2ff;">{{ total_drivers }}</p></div>
+    <div class="metric-card p-6 text-center"><p class="text-gray-400 text-sm mb-1">ML Models</p><p class="text-3xl font-bold" style="color:#00ff88;">3</p></div>
+    <div class="metric-card p-6 text-center"><p class="text-gray-400 text-sm mb-1">API Endpoints</p><p class="text-3xl font-bold" style="color:#00ff88;">5</p></div>
+</div>
+<div class="card p-6 mb-8">
+    <h2 class="text-xl font-bold mb-4" style="color:#00d2ff;">🏆 Laps Completed Per Driver</h2>
+    <div id="main_chart" style="width:100%;height:350px;"></div>
+</div>
+<div class="grid grid-cols-3 gap-4">
+    <a href="/telemetry" class="card p-6 hover:border-blue-500 border border-transparent transition-all cursor-pointer block">
+        <div class="text-3xl mb-3">📡</div>
+        <h3 class="text-white font-bold text-lg mb-2">Telemetry Analysis</h3>
+        <p class="text-gray-400 text-sm">Compare driver speed, throttle and gear data lap by lap</p>
+    </a>
+    <a href="/incidents" class="card p-6 hover:border-red-500 border border-transparent transition-all cursor-pointer block">
+        <div class="text-3xl mb-3">🚨</div>
+        <h3 class="text-white font-bold text-lg mb-2">Incident Detection</h3>
+        <p class="text-gray-400 text-sm">ML-powered anomaly detection across all 20 drivers</p>
+    </a>
+    <a href="/strategy" class="card p-6 hover:border-green-500 border border-transparent transition-all cursor-pointer block">
+        <div class="text-3xl mb-3">🎯</div>
+        <h3 class="text-white font-bold text-lg mb-2">Strategy Optimizer</h3>
+        <p class="text-gray-400 text-sm">Find the optimal pit window for any driver and strategy</p>
+    </a>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+    const chartData = {{ chart_json | safe }};
+    Plotly.react('main_chart', chartData.data, chartData.layout);
+</script>
+{% endblock %}
