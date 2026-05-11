@@ -1,0 +1,53 @@
+Driver,LapNumber,LapTimeSeconds,TyreLife,Compound,DeviationSigma,Reasoning
+VER,2.0,96.296,5.0,SOFT,0.6016869728210029,🟡 Race start lap (formation effects)
+MAG,2.0,98.911,2.0,SOFT,1.3590225563909755,🟡 Race start lap (formation effects) | 🟢 Fresh tyre push lap (likely just pitted)
+ALB,2.0,98.826,2.0,SOFT,1.180073126142593,🟡 Race start lap (formation effects) | 🟢 Fresh tyre push lap (likely just pitted)
+ZHO,2.0,98.92,2.0,SOFT,1.729142857142863,🟡 Race start lap (formation effects) | 🟢 Fresh tyre push lap (likely just pitted)
+OCO,2.0,99.094,2.0,SOFT,1.37219251336897,🟡 Race start lap (formation effects) | 🟢 Fresh tyre push lap (likely just pitted)
+STR,2.0,97.987,2.0,SOFT,0.9319654427645783,🟡 Race start lap (formation effects) | 🟢 Fresh tyre push lap (likely just pitted)
+TSU,2.0,98.689,2.0,SOFT,1.3147540983606434,🟡 Race start lap (formation effects) | 🟢 Fresh tyre push lap (likely just pitted)
+GAS,2.0,99.059,2.0,SOFT,1.293510324483769,🟡 Race start lap (formation effects) | 🟢 Fresh tyre push lap (likely just pitted)
+BOT,2.0,98.259,2.0,SOFT,0.554414784394257,🟡 Race start lap (formation effects) | 🟢 Fresh tyre push lap (likely just pitted)
+RIC,2.0,99.509,5.0,SOFT,1.6507936507936494,🟡 Race start lap (formation effects)
+SAR,2.0,98.481,2.0,SOFT,0.544266191325013,🟡 Race start lap (formation effects) | 🟢 Fresh tyre push lap (likely just pitted)
+BOT,5.0,100.087,5.0,SOFT,2.4312114989733153,❓ Unexplained anomaly — requires review
+MAG,7.0,100.058,7.0,SOFT,2.437030075187973,❓ Unexplained anomaly — requires review
+SAR,13.0,100.989,3.0,HARD,2.0344622697563914,❓ Unexplained anomaly — requires review
+SAR,14.0,101.47,4.0,HARD,2.3202614379084974,❓ Unexplained anomaly — requires review
+SAR,16.0,101.37,6.0,HARD,2.260843731431971,❓ Unexplained anomaly — requires review
+SAR,17.0,99.758,7.0,HARD,1.3030303030303017,❓ Unexplained anomaly — requires review
+VER,19.0,95.283,2.0,HARD,-0.3477038425491988,🟢 Fresh tyre push lap (likely just pitted)
+NOR,35.0,94.476,2.0,HARD,-1.976143141153081,🟢 Fresh tyre push lap (likely just pitted)
+LEC,36.0,94.09,2.0,HARD,-2.028495102404267,🟢 Fresh tyre push lap (likely just pitted)
+HUL,38.0,100.083,18.0,HARD,3.0253045923148965,🔴 Severe tire degradation | 🚨 Major slowdown — possible damage / dirty air / traffic
+ALO,39.0,97.946,24.0,HARD,0.7155049786628737,❓ Unexplained anomaly — requires review
+VER,39.0,92.608,2.0,SOFT,-2.8547328959700025,🟢 Fresh tyre push lap (likely just pitted) | ⚡ Stunning pace — qualifying-style push lap
+ALO,40.0,98.061,25.0,HARD,0.7972972972973039,❓ Unexplained anomaly — requires review
+ALO,48.0,94.199,7.0,HARD,-1.94950213371266,❓ Unexplained anomaly — requires review
+OCO,52.0,98.631,22.0,HARD,0.8770053475935755,❓ Unexplained anomaly — requires review
+TSU,52.0,99.042,18.0,HARD,1.7005464480874288,❓ Unexplained anomaly — requires review
+STR,53.0,96.64,26.0,HARD,-0.5226781857451346,❓ Unexplained anomaly — requires review
+ZHO,53.0,97.141,25.0,HARD,-0.3039999999999899,❓ Unexplained anomaly — requires review
+BOT,53.0,99.035,23.0,HARD,1.3511293634496946,❓ Unexplained anomaly — requires review
+OCO,54.0,98.707,24.0,HARD,0.9582887700534616,❓ Unexplained anomaly — requires review
+SAR,54.0,99.614,14.0,SOFT,1.2174688057041037,❓ Unexplained anomaly — requires review
+ZHO,54.0,98.389,26.0,HARD,1.1222857142857134,❓ Unexplained anomaly — requires review
+STR,54.0,96.693,27.0,HARD,-0.4654427645788308,❓ Unexplained anomaly — requires review
+ZHO,55.0,97.383,27.0,HARD,-0.027428571428572468,🟠 End of race (tire cliff)
+STR,55.0,96.68,28.0,HARD,-0.47948164146866995,🟠 End of race (tire cliff)
+OCO,55.0,97.393,25.0,HARD,-0.44705882352941856,🟠 End of race (tire cliff)
+BOT,55.0,97.205,25.0,HARD,-0.5277207392197082,🟠 End of race (tire cliff)
+VER,56.0,94.671,19.0,SOFT,-0.9212746016869634,🟠 End of race (tire cliff)
+RUS,56.0,96.35,25.0,HARD,-0.13995485327314836,🟠 End of race (tire cliff)
+BOT,56.0,97.956,26.0,HARD,0.24332648870637472,🟠 End of race (tire cliff)
+ZHO,56.0,97.333,28.0,HARD,-0.08457142857142637,🟠 End of race (tire cliff)
+OCO,56.0,97.415,26.0,HARD,-0.4235294117647067,🟠 End of race (tire cliff)
+STR,56.0,96.582,29.0,HARD,-0.585313174946006,🟠 End of race (tire cliff)
+MAG,56.0,97.584,24.0,HARD,0.11184210526315767,🟠 End of race (tire cliff)
+NOR,57.0,96.582,24.0,HARD,0.11729622266401094,🟠 End of race (tire cliff)
+RUS,57.0,96.44,26.0,HARD,-0.03837471783296391,🟠 End of race (tire cliff)
+PIA,57.0,95.92,23.0,HARD,-0.5942307692307645,🟠 End of race (tire cliff)
+SAI,57.0,95.327,22.0,HARD,-0.7293233082706732,🟠 End of race (tire cliff)
+VER,57.0,94.923,20.0,SOFT,-0.6850984067478862,🟠 End of race (tire cliff)
+STR,57.0,97.335,30.0,HARD,0.22786177105831373,🟠 End of race (tire cliff)
+HAM,57.0,96.138,24.0,HARD,-0.3148148148148142,🟠 End of race (tire cliff)

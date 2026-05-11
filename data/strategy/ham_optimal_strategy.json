@@ -1,0 +1,17 @@
+{
+  "driver": "HAM",
+  "race": "2024 Bahrain GP",
+  "race_length_laps": 57,
+  "strategy_type": "SOFT \u2192 HARD (1-stop)",
+  "optimal_pit_lap": 34,
+  "stint1_compound": "SOFT",
+  "stint1_laps": 34,
+  "stint1_time_seconds": 3331.861083984375,
+  "pit_stop_loss_seconds": 22.0,
+  "stint2_compound": "HARD",
+  "stint2_laps": 23,
+  "stint2_time_seconds": 2193.785888671875,
+  "total_race_time_seconds": 5547.64697265625,
+  "pit_window_start": 33,
+  "pit_window_end": 37
+}
