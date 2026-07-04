@@ -1,0 +1,418 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+  <div class="mb-4">
+    <h1 class="text-3xl font-bold text-cyan-400">📊 Race Predictions</h1>
+    <p class="text-gray-400 mt-1" id="pred_subtitle">
+      {{ event_name }} · {{ selected_year }} Round {{ selected_round }} · {{ event_date }}
+    </p>
+  </div>
+  <!-- Mode banner — auto updated -->
+  <div id="mode_banner" class="rounded-xl p-4 mb-6 border"
+    style="background:#1e3a5f; border-color:#3b82f6;">
+    <div class="flex items-center gap-3">
+      <div id="mode_icon" class="text-2xl">⏳</div>
+      <div>
+        <div id="mode_label" class="text-white font-bold">Detecting mode...</div>
+        <div id="mode_description" class="text-gray-400 text-xs mt-0.5">Loading available session data</div>
+      </div>
+      <div id="mode_badge" class="ml-auto px-3 py-1 rounded-full text-xs font-bold"></div>
+    </div>
+  </div>
+  <!-- Available sessions pills -->
+  <div id="sessions_pills" class="flex gap-2 mb-6 flex-wrap"></div>
+  <!-- Loading state -->
+  <div id="pred_loading" class="text-center py-16 text-gray-400">
+    <div class="text-5xl mb-4">⏳</div>
+    <div class="text-lg font-bold text-white" id="loading_title">
+      Analyzing race weekend data...
+    </div>
+    <div class="text-sm mt-2 text-gray-500" id="loading_sub">
+      Checking available sessions in parallel
+    </div>
+    <!-- Progress bar -->
+    <div class="mt-6 mx-auto max-w-xs">
+      <div class="bg-gray-700 rounded-full h-2">
+        <div id="loading_bar" class="h-2 rounded-full bg-cyan-400 transition-all duration-500"
+          style="width:0%"></div>
+      </div>
+    </div>
+    <!-- Steps -->
+    <div class="mt-4 space-y-1 text-xs text-gray-500" id="loading_steps">
+      <div id="step1">⬜ Detecting available sessions...</div>
+      <div id="step2">⬜ Identifying prediction mode...</div>
+      <div id="step3">⬜ Running prediction model...</div>
+    </div>
+  </div>
+  <!-- Error state -->
+  <div id="pred_error" style="display:none;" class="bg-red-900 border border-red-600 rounded-xl p-6 text-center">
+    <div class="text-3xl mb-2">❌</div>
+    <div id="pred_error_msg" class="text-red-300"></div>
+  </div>
+  <!-- No data state -->
+  <div id="pred_nodata" style="display:none;" class="bg-gray-800 rounded-xl p-8 text-center">
+    <div class="text-5xl mb-4">🏁</div>
+    <div class="text-white font-bold text-xl mb-2">Race Weekend Hasn't Started Yet</div>
+    <div class="text-gray-400">No session data available. Check back once practice begins.</div>
+  </div>
+  <!-- Results -->
+  <div id="pred_results" style="display:none;">
+    <!-- Model info bar -->
+    <div class="bg-gray-800 rounded-xl p-4 mb-6 flex items-center gap-4 flex-wrap">
+      <div class="text-gray-400 text-xs">🤖 Model:</div>
+      <div id="model_winner" class="text-white font-bold text-sm"></div>
+      <div class="text-gray-600">|</div>
+      <div class="text-gray-400 text-xs">MAE:</div>
+      <div id="model_mae" class="text-cyan-400 font-bold text-sm"></div>
+      <div class="text-gray-600">|</div>
+      <div id="historical_badge" class="text-xs px-2 py-1 rounded-full"></div>
+      <div id="training_samples" class="text-gray-500 text-xs"></div>
+    </div>
+    <!-- Prediction table -->
+    <div class="bg-gray-800 rounded-xl p-6 mb-6">
+      <h2 class="text-xl font-bold text-white mb-4" id="pred_table_title">Predicted Order</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-gray-400 border-b border-gray-700 text-xs">
+              <th class="text-left py-2 pr-4">Pos</th>
+              <th class="text-left py-2 pr-4">Driver</th>
+              <th class="text-left py-2 pr-4" id="th_grid">Grid</th>
+              <th class="text-left py-2 pr-4">Time / Gap</th>
+              <th class="text-left py-2 pr-4" id="th_delta">Δ Position</th>
+              <th class="text-left py-2" id="th_confidence">Confidence</th>
+            </tr>
+          </thead>
+          <tbody id="pred_tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Progression table (FP1→FP2→FP3) -->
+    <div id="progression_section" style="display:none;" class="bg-gray-800 rounded-xl p-6 mb-6">
+      <h2 class="text-xl font-bold text-white mb-4">📈 Practice Pace Progression</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-gray-400 border-b border-gray-700 text-xs">
+              <th class="text-left py-2 pr-4">Pos</th>
+              <th class="text-left py-2 pr-4">Driver</th>
+              <th class="text-center py-2 pr-4" id="prog_th_fp1">FP1</th>
+              <th class="text-center py-2 pr-4" id="prog_th_fp2">FP2</th>
+              <th class="text-center py-2 pr-4" id="prog_th_fp3">FP3</th>
+              <th class="text-left py-2">Trend</th>
+            </tr>
+          </thead>
+          <tbody id="progression_tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <!-- Post-race specific: actual vs predicted -->
+    <div id="postrace_section" style="display:none;" class="bg-gray-800 rounded-xl p-6 mb-6">
+      <h2 class="text-xl font-bold text-white mb-4">🎯 Predicted vs Actual</h2>
+      <div id="postrace_chart" style="width:100%;height:400px;"></div>
+    </div>
+    <!-- FP correlation -->
+    <div id="fp_corr_section" style="display:none;" class="bg-gray-800 rounded-xl p-6 mb-6">
+      <h2 class="text-xl font-bold text-white mb-3">📈 Session→Race Correlation</h2>
+      <p class="text-gray-400 text-xs mb-3">Which session best predicted the race result?</p>
+      <div id="fp_corr_chart" style="width:100%;height:250px;"></div>
+    </div>
+    <!-- Feature importance -->
+    <div class="bg-gray-800 rounded-xl p-6">
+      <h2 class="text-xl font-bold text-white mb-4">🔬 Feature Importance</h2>
+      <div id="feature_importance" class="space-y-2"></div>
+    </div>
+  </div>
+</div>
+<script>
+const PRED_YEAR  = {{ selected_year }};
+const PRED_ROUND = {{ selected_round }};
+const MODE_CONFIG = {
+  'post_race': {
+    icon: '🏁', color: '#14532d', border: '#166534',
+    badge_bg: '#14532d', badge_color: '#4ade80', badge: 'Post-Race'
+  },
+  'pre_race_from_quali': {
+    icon: '🎯', color: '#1e3a5f', border: '#3b82f6',
+    badge_bg: '#1e3a5f', badge_color: '#93c5fd', badge: 'Pre-Race'
+  },
+  'pre_race_from_sprint': {
+    icon: '⚡', color: '#3b1f5e', border: '#8b5cf6',
+    badge_bg: '#3b1f5e', badge_color: '#c4b5fd', badge: 'Sprint Weekend'
+  },
+  'pre_sprint_from_sq': {
+    icon: '⚡', color: '#3b1f5e', border: '#8b5cf6',
+    badge_bg: '#3b1f5e', badge_color: '#c4b5fd', badge: 'Sprint Prediction'
+  },
+  'pre_quali_from_fp': {
+    icon: '🔮', color: '#3b2a00', border: '#d97706',
+    badge_bg: '#3b2a00', badge_color: '#fcd34d', badge: 'Pre-Qualifying'
+  },
+  'no_data': {
+    icon: '⏳', color: '#1f2937', border: '#374151',
+    badge_bg: '#1f2937', badge_color: '#9ca3af', badge: 'No Data'
+  }
+};
+const SESSION_COLORS = {
+  'R': '#ef4444', 'Q': '#3b82f6', 'S': '#8b5cf6',
+  'SQ': '#a78bfa', 'FP1': '#22c55e', 'FP2': '#16a34a', 'FP3': '#15803d'
+};
+const CONF_COLORS = {
+  'High': '#22c55e', 'Medium': '#f59e0b', 'Low': '#ef4444'
+};
+async function loadPredictions() {
+  // Animate progress
+  const bar   = document.getElementById('loading_bar');
+  const step1 = document.getElementById('step1');
+  const step2 = document.getElementById('step2');
+  const step3 = document.getElementById('step3');
+  bar.style.width = '20%';
+  step1.textContent = '✅ Detecting available sessions...';
+  setTimeout(() => {
+    bar.style.width   = '50%';
+    step2.textContent = '✅ Identifying prediction mode...';
+  }, 800);
+  setTimeout(() => {
+    bar.style.width   = '80%';
+    step3.textContent = '✅ Running prediction model...';
+  }, 1500);
+  try {
+    const res  = await fetch(`/api/predictions/${PRED_YEAR}/${PRED_ROUND}`);
+    bar.style.width = '100%';
+    const data = await res.json();
+    document.getElementById('pred_loading').style.display = 'none';
+    if (data.error) {
+      document.getElementById('pred_error').style.display    = 'block';
+      document.getElementById('pred_error_msg').textContent  = data.error;
+      return;
+    }
+    if (data.status === 'no_data' || data.mode === 'no_data') {
+      document.getElementById('pred_nodata').style.display = 'block';
+      updateModeBanner('no_data', 'No Data Available', data.message || '');
+      return;
+    }
+    // Update mode banner
+    const cfg = MODE_CONFIG[data.mode] || MODE_CONFIG['no_data'];
+    updateModeBanner(data.mode, data.mode_label, data.mode_description);
+    // Session pills
+    if (data.available_sessions) {
+      document.getElementById('sessions_pills').innerHTML =
+        data.available_sessions.map(s => `
+          <span class="text-xs px-3 py-1 rounded-full font-bold"
+            style="background:${SESSION_COLORS[s] || '#374151'}33;
+                   color:${SESSION_COLORS[s] || '#9ca3af'};
+                   border:1px solid ${SESSION_COLORS[s] || '#374151'}66;">
+            ✅ ${s}
+          </span>
+        `).join('');
+    }
+    document.getElementById('pred_results').style.display = 'block';
+    if (data.is_progression) {
+      document.getElementById('progression_section').style.display = 'block';
+      document.getElementById('pred_results').style.display = 'block';
+      const sessionsAvail = data.sessions_available || [];
+      ['FP1','FP2','FP3'].forEach(st => {
+        const th = document.getElementById(`prog_th_${st.toLowerCase()}`);
+        if (th) th.style.display = sessionsAvail.includes(st) ? '' : 'none';
+      });
+      const TREND_COLORS = {
+        'Improving':  '#22c55e',
+        'Declining':  '#ef4444',
+        'Consistent': '#9ca3af',
+        'N/A':        '#6b7280',
+      };
+      const TREND_ICONS = {
+        'Improving':  '↑',
+        'Declining':  '↓',
+        'Consistent': '→',
+        'N/A':        '—',
+      };
+      document.getElementById('progression_tbody').innerHTML = data.predictions.map(p => {
+        const cells = ['FP1','FP2','FP3'].map(st => {
+          if (!sessionsAvail.includes(st)) return '';
+          const rank = p.ranks[st];
+          return `<td class="text-center py-2 pr-4 ${rank ? 'text-white' : 'text-gray-600'}">${rank ? 'P'+rank : '—'}</td>`;
+        }).join('');
+        const tColor = TREND_COLORS[p.trend_label] || '#9ca3af';
+        const tIcon  = TREND_ICONS[p.trend_label] || '—';
+        return `
+          <tr class="border-b border-gray-700">
+            <td class="py-2 pr-4 font-bold text-white">${p.position}</td>
+            <td class="py-2 pr-4 font-bold text-white">${p.driver}</td>
+            ${cells}
+            <td class="py-2">
+              <span class="text-xs px-2 py-0.5 rounded-full" style="background:${tColor}22; color:${tColor}; border:1px solid ${tColor}44;">
+                ${tIcon} ${p.trend_label}${p.trend !== 0 ? ' ('+(p.trend>0?'+':'')+p.trend+')' : ''}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+      // Hide the regular prediction table and model info bar for progression mode
+      document.querySelector('#pred_results > div:nth-child(1)').style.display = 'none'; // model info bar
+      document.querySelector('#pred_results > div:nth-child(2)').style.display = 'none'; // regular table
+      return; // skip the rest of the normal rendering
+    } else {
+      document.getElementById('progression_section').style.display = 'none';
+    }
+    // Model info
+    const comp = data.comparison || {};
+    if (data.is_ranking_only) {
+      document.getElementById('model_winner').textContent = 'Pace Ranking — no model';
+      document.getElementById('model_mae').textContent = 'N/A';
+    } else {
+      document.getElementById('model_winner').textContent =
+        comp.winner ? `${comp.winner} wins` : (data.mode === 'post_race' ? 'XGBoost Post-Race' : '—');
+      document.getElementById('model_mae').textContent =
+        data.mae ? `${data.mae} positions` : '—';
+    }
+    // Historical badge
+    const histBadge = document.getElementById('historical_badge');
+    if (data.is_ranking_only) {
+      histBadge.style.display = 'none';
+    } else if (data.used_historical) {
+      histBadge.style.display = '';
+      histBadge.textContent   = '✅ Historical Model';
+      histBadge.style.background = '#14532d';
+      histBadge.style.color      = '#4ade80';
+      histBadge.style.border     = '1px solid #166534';
+    } else if (data.mode !== 'post_race') {
+      histBadge.style.display = '';
+      histBadge.textContent   = '⚠️ Fallback (Quali Order)';
+      histBadge.style.background = '#7c2d12';
+      histBadge.style.color      = '#fdba74';
+      histBadge.style.border     = '1px solid #9a3412';
+    } else {
+      histBadge.style.display = 'none';
+    }
+    if (data.training_samples) {
+      document.getElementById('training_samples').textContent =
+        `${data.training_samples} historical races trained`;
+    }
+    // Prediction table
+    const predictions = data.predictions || [];
+    const isPostRace  = data.mode === 'post_race';
+    const tableTitleMap = {
+      'post_race':            'Predicted Finishing Order (Pure Pace)',
+      'pre_race_from_quali':  'Predicted Race Order',
+      'pre_race_from_sprint': 'Predicted Race Order',
+      'pre_sprint_from_sq':   'Predicted Sprint Order',
+      'pre_quali_from_fp':    'Practice Pace Ranking',
+    };
+    const gridLabelMap = {
+      'post_race':            'Actual',
+      'pre_quali_from_fp':    'Rank',
+    };
+    document.getElementById('pred_table_title').textContent = tableTitleMap[data.mode] || 'Predicted Order';
+    document.getElementById('th_grid').textContent = gridLabelMap[data.mode] || 'Grid';
+    if (data.is_ranking_only) {
+      document.getElementById('th_delta').style.display = 'none';
+      document.getElementById('th_confidence').style.display = 'none';
+    } else {
+      document.getElementById('th_delta').style.display = '';
+      document.getElementById('th_confidence').style.display = '';
+    }
+    document.getElementById('pred_tbody').innerHTML = predictions.map(p => {
+      const delta     = p.position_delta || (p.grid_position - p.position);
+      const deltaDisp = delta > 0 ? `+${delta}` : `${delta}`;
+      const deltaColor = delta > 0 ? '#22c55e' : delta < 0 ? '#ef4444' : '#9ca3af';
+      const confColor  = CONF_COLORS[p.confidence] || '#9ca3af';
+      return `
+        <tr class="border-b border-gray-700 hover:bg-gray-750">
+          <td class="py-2 pr-4">
+            <span class="font-bold text-white text-lg">${p.position}</span>
+          </td>
+          <td class="py-2 pr-4 font-bold text-white">${p.driver}</td>
+          <td class="py-2 pr-4 text-gray-400">
+            ${isPostRace ? (p.actual_position || '—') : `P${p.grid_position}`}
+          </td>
+          <td class="py-2 pr-4 font-mono text-xs text-gray-300">
+            ${p.quali_time ? (p.quali_time >= 60
+              ? Math.floor(p.quali_time/60)+':'+(p.quali_time%60).toFixed(3).padStart(6,'0')
+              : p.quali_time.toFixed(3)+'s') : '—'}
+            ${p.gap_to_pole > 0 ? `<span class="text-gray-500 ml-1">+${p.gap_to_pole.toFixed(3)}</span>` : ''}
+          </td>
+          <td class="py-2 pr-4 font-bold" style="color:${deltaColor}; ${data.is_ranking_only ? 'display:none;' : ''}">
+            ${delta === 0 ? '↔' : delta > 0 ? `↑ ${deltaDisp}` : `↓ ${deltaDisp}`}
+          </td>
+          <td class="py-2" style="${data.is_ranking_only ? 'display:none;' : ''}">
+            ${p.confidence ? `
+            <span class="text-xs px-2 py-0.5 rounded-full"
+              style="background:${confColor}22; color:${confColor}; border:1px solid ${confColor}44;">
+              ${p.confidence}
+            </span>` : '<span class="text-gray-500 text-xs">—</span>'}
+          </td>
+        </tr>
+      `;
+    }).join('');
+    // Post-race chart
+    if (isPostRace && predictions.length > 0) {
+      document.getElementById('postrace_section').style.display = 'block';
+      const drivers  = predictions.map(p => p.driver);
+      const actuals  = predictions.map(p => p.actual_position || p.position);
+      const preds    = predictions.map(p => p.position);
+      Plotly.react('postrace_chart', [
+        { x: drivers, y: actuals, type: 'bar', name: 'Actual', marker: {color:'#22c55e'} },
+        { x: drivers, y: preds,   type: 'bar', name: 'Predicted', marker: {color:'#00d2ff'} },
+      ], {
+        barmode: 'group', template: 'plotly_dark',
+        paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+        height: 400, margin: {l:40, r:20, t:10, b:60},
+        xaxis: {title:'Driver'}, yaxis: {title:'Position', autorange:'reversed'}
+      });
+    }
+    // FP correlation
+    if (data.fp_correlation?.sessions?.length > 0) {
+      document.getElementById('fp_corr_section').style.display = 'block';
+      const corrs = data.fp_correlation.sessions;
+      Plotly.react('fp_corr_chart', [{
+        x:    corrs.map(c => c.label),
+        y:    corrs.map(c => Math.abs(c.correlation) * 100),
+        type: 'bar',
+        marker: { color: corrs.map(c => c.session === 'Q' ? '#3b82f6' : '#22c55e') },
+        hovertemplate: '%{x}<br>Correlation: %{y:.1f}%<extra></extra>'
+      }], {
+        template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+        height: 250, margin: {l:40, r:20, t:10, b:40},
+        xaxis: {title:'Session'}, yaxis: {title:'Correlation with Race (%)', range:[0,100]}
+      });
+    }
+    // Feature importance
+    const feats = data.feature_importance || [];
+    if (feats.length > 0) {
+      const maxImp = Math.max(...feats.map(f => f.importance));
+      document.getElementById('feature_importance').innerHTML = feats.map(f => `
+        <div class="flex items-center gap-3">
+          <div class="text-gray-400 text-xs w-32 shrink-0">${f.feature}</div>
+          <div class="flex-1 bg-gray-700 rounded-full h-3">
+            <div class="h-3 rounded-full bg-cyan-400"
+              style="width:${Math.round(f.importance/maxImp*100)}%"></div>
+          </div>
+          <div class="text-cyan-400 text-xs font-mono w-16 text-right">${(f.importance*100).toFixed(1)}%</div>
+        </div>
+      `).join('');
+    }
+  } catch(e) {
+    document.getElementById('pred_loading').style.display = 'none';
+    document.getElementById('pred_error').style.display   = 'block';
+    document.getElementById('pred_error_msg').textContent = e.message;
+  }
+}
+function updateModeBanner(mode, label, description) {
+  const cfg = MODE_CONFIG[mode] || MODE_CONFIG['no_data'];
+  const banner = document.getElementById('mode_banner');
+  banner.style.background   = cfg.color;
+  banner.style.borderColor  = cfg.border;
+  document.getElementById('mode_icon').textContent        = cfg.icon;
+  document.getElementById('mode_label').textContent       = label;
+  document.getElementById('mode_description').textContent = description;
+  const badge = document.getElementById('mode_badge');
+  badge.textContent        = cfg.badge;
+  badge.style.background   = cfg.badge_bg;
+  badge.style.color        = cfg.badge_color;
+  badge.style.border       = `1px solid ${cfg.border}`;
+}
+// Load on page open
+loadPredictions();
+</script>
+{% endblock %}
