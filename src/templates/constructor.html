@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+
+  <div class="mb-4">
+    <h1 class="text-3xl font-bold text-cyan-400">🏆 Constructor Intelligence</h1>
+    <p class="text-gray-400 mt-1">Team performance analysis across 2018–2026</p>
+  </div>
+
+  <!-- Team selector -->
+  <div class="bg-gray-800 rounded-xl p-5 mb-6">
+    <div class="flex flex-wrap gap-4 items-end">
+      <div>
+        <label class="text-gray-400 text-xs">Constructor</label>
+        <select id="team_select" class="bg-gray-700 text-white rounded px-3 py-2 mt-1 text-sm min-w-48">
+          {% for t in teams %}<option>{{ t }}</option>{% endfor %}
+        </select>
+      </div>
+      <button onclick="loadConstructor()" class="px-6 py-2 rounded-lg font-bold text-white text-sm"
+        style="background:#FF1E1E;">
+        🏭 Analyze Constructor
+      </button>
+    </div>
+  </div>
+
+  <div id="ci_loading" style="display:none;" class="text-center py-10 text-gray-400">
+    ⏳ Loading constructor data...
+  </div>
+
+  <div id="ci_content" style="display:none;">
+
+    <!-- Header -->
+    <div class="bg-gray-800 rounded-xl p-5 mb-6 flex items-center gap-4">
+      <div class="flex-1">
+        <h2 id="ci_team_name" class="text-2xl font-bold text-white"></h2>
+        <p id="ci_team_meta" class="text-gray-400 text-sm mt-1"></p>
+      </div>
+      <div id="ci_trend_badge" class="px-4 py-2 rounded-xl font-bold text-sm"></div>
+    </div>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-gray-800 rounded-xl p-5 text-center">
+        <div class="text-gray-400 text-xs mb-1">Seasons Active</div>
+        <div id="ci_seasons" class="text-2xl font-bold text-cyan-400">—</div>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 text-center">
+        <div class="text-gray-400 text-xs mb-1">Total Laps</div>
+        <div id="ci_laps" class="text-2xl font-bold text-white">—</div>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 text-center">
+        <div class="text-gray-400 text-xs mb-1">Drivers Used</div>
+        <div id="ci_drivers_count" class="text-2xl font-bold text-yellow-400">—</div>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 text-center">
+        <div class="text-gray-400 text-xs mb-1">Trend Slope</div>
+        <div id="ci_slope" class="text-2xl font-bold">—</div>
+      </div>
+    </div>
+
+    <!-- Performance vs field -->
+    <div class="bg-gray-800 rounded-xl p-6 mb-6">
+      <h2 class="text-xl font-bold text-white mb-2">📈 Performance vs Field (Season by Season)</h2>
+      <p class="text-gray-400 text-xs mb-3">Negative = faster than field average. Shows development trajectory.</p>
+      <div id="ci_relative_chart" style="width:100%;height:300px;"></div>
+    </div>
+
+    <!-- Teammate comparisons -->
+    <div class="bg-gray-800 rounded-xl p-6 mb-6">
+      <h2 class="text-xl font-bold text-white mb-3">👥 Teammate Battle History</h2>
+      <div id="ci_teammates" class="space-y-2 max-h-80 overflow-y-auto"></div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
+      <!-- Best circuits -->
+      <div class="bg-gray-800 rounded-xl p-5">
+        <h2 class="text-lg font-bold text-white mb-3">✅ Strongest Circuits</h2>
+        <div id="ci_best_circuits" class="space-y-2"></div>
+      </div>
+
+      <!-- Worst circuits -->
+      <div class="bg-gray-800 rounded-xl p-5">
+        <h2 class="text-lg font-bold text-white mb-3">❌ Weakest Circuits</h2>
+        <div id="ci_worst_circuits" class="space-y-2"></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const TEAM_COLORS = {
+    'Red Bull Racing': '#3671C6', 'Ferrari': '#E8002D',
+    'Mercedes': '#27F4D2', 'McLaren': '#FF8000',
+    'Aston Martin': '#229971', 'Alpine': '#FF87BC',
+    'Williams': '#64C4FF', 'RB': '#6692FF',
+    'Racing Bulls': '#6692FF', 'Kick Sauber': '#52E252',
+    'Haas F1 Team': '#B6BABD', 'AlphaTauri': '#5E8FAA',
+    'Alfa Romeo': '#C92D4B', 'Renault': '#FFF500',
+    'Force India': '#F596C8', 'Racing Point': '#F596C8',
+    'Toro Rosso': '#469BFF', 'Sauber': '#C92D4B',
+    'Alfa Romeo Racing': '#C92D4B',
+  };
+
+  async function loadConstructor() {
+    const team = document.getElementById('team_select').value;
+    const btn = document.querySelector('[onclick="loadConstructor()"]');
+    btn.textContent = '⏳ Loading...';
+    btn.disabled = true;
+    document.getElementById('ci_loading').style.display = 'block';
+    document.getElementById('ci_content').style.display = 'none';
+
+    const res = await fetch(`/api/constructor-intelligence/${encodeURIComponent(team)}`);
+    const data = await res.json();
+
+    btn.textContent = '🏭 Analyze Constructor';
+    btn.disabled = false;
+    document.getElementById('ci_loading').style.display = 'none';
+
+    if (data.error) { alert(data.error); return; }
+
+    document.getElementById('ci_content').style.display = 'block';
+
+    const color = TEAM_COLORS[data.team] || '#888';
+
+    // Header
+    document.getElementById('ci_team_name').textContent = data.team;
+    document.getElementById('ci_team_name').style.color = color;
+    document.getElementById('ci_team_meta').textContent =
+      `Active: ${data.seasons_active.join(', ')} · Drivers: ${data.drivers_used.join(', ')}`;
+
+    // Trend badge
+    const trendEl = document.getElementById('ci_trend_badge');
+    const trendConfig = {
+      'improving': { bg: '#14532d', color: '#4ade80', icon: '📈', label: 'Improving' },
+      'declining': { bg: '#7f1d1d', color: '#fca5a5', icon: '📉', label: 'Declining' },
+      'stable': { bg: '#1e3a5f', color: '#93c5fd', icon: '➡️', label: 'Stable' },
+      'insufficient data': { bg: '#374151', color: '#d1d5db', icon: '❓', label: 'Insufficient Data' },
+    }[data.trend] || { bg: '#374151', color: '#d1d5db', icon: '❓', label: data.trend };
+    trendEl.style.background = trendConfig.bg;
+    trendEl.style.color = trendConfig.color;
+    trendEl.textContent = `${trendConfig.icon} ${trendConfig.label}`;
+
+    // KPIs
+    document.getElementById('ci_seasons').textContent = data.seasons_active.length;
+    document.getElementById('ci_laps').textContent = data.total_laps.toLocaleString();
+    document.getElementById('ci_drivers_count').textContent = data.drivers_used.length;
+    const slopeEl = document.getElementById('ci_slope');
+    slopeEl.textContent = data.trend_slope > 0 ? `+${data.trend_slope}` : data.trend_slope;
+    slopeEl.style.color = data.trend_slope < 0 ? '#22c55e' : data.trend_slope > 0 ? '#ef4444' : '#9ca3af';
+
+    // Performance vs field
+    const rel = data.season_relative;
+    Plotly.react('ci_relative_chart', [{
+      x: rel.map(s => s.season),
+      y: rel.map(s => s.delta),
+      type: 'bar',
+      marker: { color: rel.map(s => s.delta < 0 ? '#22c55e' : '#ef4444') },
+      hovertemplate: '%{x}<br>vs field: %{y:+.3f}s<extra></extra>'
+    }, {
+      x: rel.map(s => s.season),
+      y: rel.map(s => s.delta),
+      mode: 'lines', name: 'Trend',
+      line: { color: color, width: 2, dash: 'dot' },
+      hoverinfo: 'skip'
+    }], {
+      template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+      height: 300, margin: { l: 60, r: 20, t: 10, b: 40 },
+      xaxis: { title: 'Season', dtick: 1 },
+      yaxis: { title: 'Delta vs Field Avg (s)', zeroline: true, zerolinecolor: '#fff' },
+      shapes: [{
+        type: 'line', x0: rel[0]?.season, x1: rel[rel.length - 1]?.season,
+        y0: 0, y1: 0, line: { color: '#ffffff', width: 1, dash: 'dot' }
+      }]
+    });
+
+    // Teammate comparisons
+    document.getElementById('ci_teammates').innerHTML = data.teammate_comparisons.map(t => `
+    <div class="flex items-center gap-3 bg-gray-700 rounded-lg p-3 text-sm">
+      <div class="text-gray-400 w-12">${t.season}</div>
+      <div class="font-bold ${t.winner === t.driver1 ? 'text-green-400' : 'text-gray-300'} w-10">${t.driver1}</div>
+      <div class="text-gray-500 text-xs">${t.avg1}s</div>
+      <div class="text-gray-500 mx-2">vs</div>
+      <div class="font-bold ${t.winner === t.driver2 ? 'text-green-400' : 'text-gray-300'} w-10">${t.driver2}</div>
+      <div class="text-gray-500 text-xs">${t.avg2}s</div>
+      <div class="ml-auto text-xs ${t.delta < 0 ? 'text-green-400' : 'text-red-400'}">
+        ${t.delta > 0 ? '+' : ''}${t.delta}s gap
+      </div>
+    </div>
+  `).join('');
+
+    // Best/worst circuits
+    function renderCircuits(circuits, elementId, positive) {
+      document.getElementById(elementId).innerHTML = circuits.map(c => `
+      <div class="flex items-center gap-2 text-sm">
+        <div class="text-white text-xs flex-1">${c.circuit}</div>
+        <div class="${positive ? 'text-green-400' : 'text-red-400'} font-mono text-xs">
+          ${c.delta > 0 ? '+' : ''}${c.delta}s vs field
+        </div>
+      </div>
+    `).join('');
+    }
+    renderCircuits(data.best_circuits, 'ci_best_circuits', true);
+    renderCircuits(data.worst_circuits, 'ci_worst_circuits', false);
+  }
+
+  // Auto-load first team
+  loadConstructor();
+</script>
+{% endblock %}

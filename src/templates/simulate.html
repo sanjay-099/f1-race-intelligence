@@ -1,0 +1,564 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+
+    <div class="mb-4">
+        <h1 class="text-3xl font-bold text-cyan-400">🎲 Race Simulation Engine</h1>
+        <p class="text-gray-400 mt-1">Monte Carlo simulation + Scenario Forecasting — {{ event_name }} {{ selected_year
+            }}</p>
+    </div>
+
+    {% if not race_happened %}
+    <div class="bg-yellow-900 border border-yellow-600 rounded-xl p-4 mb-4 text-yellow-300 text-sm">
+        ⚠️ <strong>{{ event_name }} {{ selected_year }} hasn't happened yet</strong> —
+        using <strong>{{ fallback_event }}</strong> data as baseline for simulation.
+        Lap counts and circuit characteristics are from this year's schedule.
+    </div>
+    {% endif %}
+
+    <div class="bg-gray-800 rounded-xl p-3 mb-4 text-xs text-gray-400">
+        🏎️ Simulation uses <strong class="text-white">Race session data only</strong> —
+        practice, qualifying and sprint sessions not applicable for pit strategy simulation.
+    </div>
+
+    <!-- Tabs -->
+    <div class="flex gap-2 mb-6">
+        <button onclick="showTab('monte')" id="tab_monte"
+            class="px-5 py-2 rounded-lg font-medium text-sm bg-cyan-600 text-white">
+            🎲 Monte Carlo
+        </button>
+        <button onclick="showTab('scenario')" id="tab_scenario"
+            class="px-5 py-2 rounded-lg font-medium text-sm bg-gray-700 text-gray-300 hover:bg-gray-600">
+            📊 Scenario Forecasting
+        </button>
+    </div>
+
+    <!-- ── MONTE CARLO TAB ──────────────────────────────── -->
+    <div id="tab_monte_content">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
+            <!-- Strategy Setup -->
+            <div class="bg-gray-800 rounded-xl p-5">
+                <h3 class="text-white font-bold mb-4">🏎️ Strategy Setup</h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="text-gray-400 text-xs">Driver</label>
+                        <select id="mc_driver" class="w-full bg-gray-700 text-white rounded px-3 py-2 mt-1 text-sm">
+                            {% for d in drivers %}<option>{{ d }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <div>
+                            <label class="text-gray-400 text-xs">Stint 1</label>
+                            <select id="mc_s1" class="w-full bg-gray-700 text-white rounded px-2 py-2 mt-1 text-sm">
+                                {% for c in compounds %}<option>{{ c }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-gray-400 text-xs">Stint 2</label>
+                            <select id="mc_s2" class="w-full bg-gray-700 text-white rounded px-2 py-2 mt-1 text-sm">
+                                {% for c in compounds %}<option>{{ c }}</option>{% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-gray-400 text-xs">Stint 3</label>
+                            <select id="mc_s3" class="w-full bg-gray-700 text-white rounded px-2 py-2 mt-1 text-sm">
+                                <option value="None">None</option>
+                                {% for c in compounds %}<option>{{ c }}</option>{% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="text-gray-400 text-xs">Pit Lap 1: <span id="mc_pit1_val">25</span></label>
+                            <input type="range" id="mc_pit1" min="5" max="55" value="25" class="w-full mt-1">
+                        </div>
+                        <div>
+                            <label class="text-gray-400 text-xs">Pit Lap 2: <span id="mc_pit2_val">40</span></label>
+                            <input type="range" id="mc_pit2" min="10" max="60" value="40" class="w-full mt-1">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-gray-400 text-xs">Pit Loss (s): <span id="mc_pitloss_val">22</span>s</label>
+                        <input type="range" id="mc_pitloss" min="15" max="35" value="22" step="0.5" class="w-full mt-1">
+                    </div>
+                    <div>
+                        <label class="text-gray-400 text-xs">Simulations: <span id="mc_nsims_val">500</span></label>
+                        <input type="range" id="mc_nsims" min="100" max="1000" value="500" step="100"
+                            class="w-full mt-1">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Race Conditions -->
+            <div class="bg-gray-800 rounded-xl p-5">
+                <h3 class="text-white font-bold mb-4">🌧️ Race Conditions</h3>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-gray-400 text-xs">SC Probability: <span id="mc_sc_val">30</span>%</label>
+                        <input type="range" id="mc_sc" min="0" max="100" value="30" class="w-full mt-1">
+                    </div>
+                    <div>
+                        <label class="text-gray-400 text-xs">Rain Intensity</label>
+                        <select id="mc_rain_int" class="w-full bg-gray-700 text-white rounded px-3 py-2 mt-1 text-sm">
+                            <option value="0">☀️ No Rain</option>
+                            <option value="1">🌦️ Light Rain (+15% lap time → INTER)</option>
+                            <option value="2">🌧️ Heavy Rain (+35% lap time → WET)</option>
+                        </select>
+                    </div>
+                    <div id="rain_start_wrapper" style="display:none;">
+                        <label class="text-gray-400 text-xs">Rain Starts Lap: <span
+                                id="mc_rain_lap_val">20</span></label>
+                        <input type="range" id="mc_rain_lap" min="1" max="60" value="20" class="w-full mt-1">
+                    </div>
+                    <div class="border-t border-gray-700 pt-3">
+                        <label class="text-gray-400 text-xs font-bold">🔬 Advanced</label>
+                        <div class="mt-2">
+                            <label class="flex items-center gap-2 text-gray-300 text-sm cursor-pointer">
+                                <input type="checkbox" id="mc_optimize" class="rounded">
+                                Run Pit Window Optimizer (slower)
+                            </label>
+                        </div>
+                        <div class="mt-2">
+                            <label class="text-gray-400 text-xs">Pit Window: <span id="mc_pitmin_val">10</span>–<span
+                                    id="mc_pitmax_val">50</span></label>
+                            <div class="grid grid-cols-2 gap-2 mt-1">
+                                <input type="range" id="mc_pitmin" min="5" max="40" value="10" class="w-full">
+                                <input type="range" id="mc_pitmax" min="20" max="60" value="50" class="w-full">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="runMonteCarlo()" class="w-full mt-4 py-3 rounded-xl font-bold text-white transition"
+                    style="background:#FF1E1E;">
+                    🎲 Run Monte Carlo
+                </button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="mc_results" style="display:none;">
+
+            <!-- P10/P50/P90 -->
+            <div class="grid grid-cols-3 gap-4 mb-4">
+                <div class="bg-gray-800 rounded-xl p-5 text-center border-t-4 border-green-500">
+                    <div class="text-gray-400 text-xs mb-1">P10 — Best Case</div>
+                    <div id="mc_p10" class="text-2xl font-bold text-green-400">—</div>
+                    <div class="text-gray-500 text-xs mt-1">10% chance better than this</div>
+                </div>
+                <div class="bg-gray-800 rounded-xl p-5 text-center border-t-4 border-cyan-500">
+                    <div class="text-gray-400 text-xs mb-1">P50 — Expected</div>
+                    <div id="mc_p50" class="text-2xl font-bold text-cyan-400">—</div>
+                    <div class="text-gray-500 text-xs mt-1">Most likely outcome</div>
+                </div>
+                <div class="bg-gray-800 rounded-xl p-5 text-center border-t-4 border-red-500">
+                    <div class="text-gray-400 text-xs mb-1">P90 — Worst Case</div>
+                    <div id="mc_p90" class="text-2xl font-bold text-red-400">—</div>
+                    <div class="text-gray-500 text-xs mt-1">10% chance worse than this</div>
+                </div>
+            </div>
+
+            <!-- SC + Rain Impact -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+                <div class="bg-gray-800 rounded-xl p-4 text-center">
+                    <div class="text-gray-400 text-xs mb-1">🟡 With SC</div>
+                    <div id="mc_sc_avg" class="text-lg font-bold text-yellow-400">—</div>
+                </div>
+                <div class="bg-gray-800 rounded-xl p-4 text-center">
+                    <div class="text-gray-400 text-xs mb-1">🟢 Without SC</div>
+                    <div id="mc_nosc_avg" class="text-lg font-bold text-green-400">—</div>
+                </div>
+                <div class="bg-gray-800 rounded-xl p-4 text-center">
+                    <div class="text-gray-400 text-xs mb-1">⚡ Early SC</div>
+                    <div id="mc_early_sc" class="text-lg font-bold text-orange-400">—</div>
+                </div>
+                <div class="bg-gray-800 rounded-xl p-4 text-center">
+                    <div class="text-gray-400 text-xs mb-1">🕐 Late SC</div>
+                    <div id="mc_late_sc" class="text-lg font-bold text-purple-400">—</div>
+                </div>
+            </div>
+
+            <!-- Risk score -->
+            <div class="bg-gray-800 rounded-xl p-4 mb-4 flex items-center gap-4">
+                <div class="text-gray-400 text-sm">⚠️ Risk Score:</div>
+                <div id="mc_risk" class="text-2xl font-bold text-yellow-400">—</div>
+                <div class="text-gray-500 text-xs">(P90−P10 as % of P50 — lower is safer)</div>
+            </div>
+
+            <!-- Pit Window Optimizer -->
+            <div id="mc_optimizer_section" style="display:none;" class="bg-gray-800 rounded-xl p-5 mb-4">
+                <h3 class="text-white font-bold mb-3">🔬 Pit Window Optimizer</h3>
+                <p class="text-gray-400 text-xs mb-3">P50 race time across all pit windows tested</p>
+                <div id="mc_optimizer_chart" style="width:100%;height:250px;"></div>
+                <div id="mc_best_pit" class="mt-3 text-center text-green-400 font-bold text-sm"></div>
+            </div>
+
+            <!-- Distribution -->
+            <div class="bg-gray-800 rounded-xl p-5">
+                <h3 class="text-white font-bold mb-3">
+                    📊 Race Time Distribution (<span id="mc_nsims_display">500</span> simulations)
+                </h3>
+                <div id="mc_chart" style="width:100%;height:300px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ── SCENARIO FORECASTING TAB ─────────────────────── -->
+    <div id="tab_scenario_content" style="display:none;">
+        <div class="bg-gray-800 rounded-xl p-5 mb-6">
+            <h3 class="text-white font-bold mb-4">📊 Compare Strategies Head-to-Head</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                <div>
+                    <label class="text-gray-400 text-xs">Driver</label>
+                    <select id="sc_driver" class="w-full bg-gray-700 text-white rounded px-3 py-2 mt-1 text-sm">
+                        {% for d in drivers %}<option>{{ d }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-gray-400 text-xs">SC Probability: <span id="sc_sc_val">30</span>%</label>
+                    <input type="range" id="sc_sc" min="0" max="100" value="30" class="w-full mt-2">
+                </div>
+                <div>
+                    <label class="text-gray-400 text-xs">
+                        Risk Tolerance: <span id="sc_risk_val">50</span>
+                        <span class="text-gray-500">(0=conservative · 100=aggressive)</span>
+                    </label>
+                    <input type="range" id="sc_risk" min="0" max="100" value="50" class="w-full mt-2">
+                </div>
+            </div>
+
+            <div id="scenario_list" class="space-y-3 mb-4"></div>
+            <div class="flex gap-3">
+                <button onclick="addScenario()"
+                    class="px-4 py-2 bg-gray-700 text-gray-300 rounded-lg text-sm hover:bg-gray-600">
+                    + Add Strategy
+                </button>
+                <button onclick="runScenario()" class="px-4 py-2 rounded-lg text-sm font-bold text-white"
+                    style="background:#FF1E1E;">
+                    📊 Compare Strategies
+                </button>
+            </div>
+        </div>
+
+        <!-- Scenario results -->
+        <div id="sc_results" style="display:none;">
+
+            <!-- Recommended -->
+            <div id="sc_recommended"
+                class="bg-green-900 border border-green-600 rounded-xl p-4 mb-4 text-green-300 text-sm font-bold"></div>
+
+            <!-- Ranking -->
+            <div class="bg-gray-800 rounded-xl p-5 mb-4">
+                <h3 class="text-white font-bold mb-4">🏆 Strategy Ranking</h3>
+                <div id="sc_ranking" class="space-y-3"></div>
+            </div>
+
+            <!-- Distribution -->
+            <div class="bg-gray-800 rounded-xl p-5">
+                <h3 class="text-white font-bold mb-3">📈 Distribution Comparison</h3>
+                <div id="sc_chart" style="width:100%;height:350px;"></div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const SIM_YEAR = {{ selected_year }};
+    const SIM_ROUND = {{ selected_round }};
+    const SIM_SESSION = "R";
+    const SIM_LAPS = {{ race_laps }};
+    const DRIVER_NOISE = {{ driver_noise | safe }};
+    const COMPOUNDS = {{ compounds | tojson }};
+
+    // ── Tab switching ─────────────────────────────────────────
+    function showTab(tab) {
+        ['monte', 'scenario'].forEach(t => {
+            document.getElementById(`tab_${t}_content`).style.display = t === tab ? 'block' : 'none';
+            document.getElementById(`tab_${t}`).className = t === tab
+                ? 'px-5 py-2 rounded-lg font-medium text-sm bg-cyan-600 text-white'
+                : 'px-5 py-2 rounded-lg font-medium text-sm bg-gray-700 text-gray-300 hover:bg-gray-600';
+        });
+    }
+
+    // ── Slider helpers ────────────────────────────────────────
+    function wire(id, dispId) {
+        const el = document.getElementById(id);
+        if (el && dispId) el.addEventListener('input', () => {
+            document.getElementById(dispId).textContent = el.value;
+        });
+        return () => parseFloat(el ? el.value : 0);
+    }
+    const getPit1 = wire('mc_pit1', 'mc_pit1_val');
+    const getPit2 = wire('mc_pit2', 'mc_pit2_val');
+    const getPitLoss = wire('mc_pitloss', 'mc_pitloss_val');
+    const getSC = wire('mc_sc', 'mc_sc_val');
+    const getNSims = wire('mc_nsims', 'mc_nsims_val');
+    const getPitMin = wire('mc_pitmin', 'mc_pitmin_val');
+    const getPitMax = wire('mc_pitmax', 'mc_pitmax_val');
+    const getRainLap = wire('mc_rain_lap', 'mc_rain_lap_val');
+    const getScSC = wire('sc_sc', 'sc_sc_val');
+    const getScRisk = wire('sc_risk', 'sc_risk_val');
+
+    // Show/hide rain lap slider
+    document.getElementById('mc_rain_int').addEventListener('change', function () {
+        document.getElementById('rain_start_wrapper').style.display =
+            this.value > 0 ? 'block' : 'none';
+    });
+
+    function fmt(t) {
+        const m = Math.floor(t / 60);
+        const s = (t % 60).toFixed(3).padStart(6, '0');
+        return `${m}:${s}`;
+    }
+
+    // ── Monte Carlo ───────────────────────────────────────────
+    async function runMonteCarlo() {
+        const btn = document.querySelector('[onclick="runMonteCarlo()"]');
+        btn.textContent = '⏳ Simulating...';
+        btn.disabled = true;
+
+        const driver = document.getElementById('mc_driver').value;
+        const rainInt = parseInt(document.getElementById('mc_rain_int').value);
+        const optimize = document.getElementById('mc_optimize').checked;
+
+        const body = {
+            year: SIM_YEAR, round: SIM_ROUND, session_type: SIM_SESSION,
+            driver,
+            stint1: document.getElementById('mc_s1').value,
+            stint2: document.getElementById('mc_s2').value,
+            stint3: document.getElementById('mc_s3').value,
+            pit_lap: getPit1(),
+            pit_lap2: getPit2(),
+            race_length: SIM_LAPS,
+            pit_loss: getPitLoss(),
+            n_sims: getNSims(),
+            sc_prob: getSC() / 100,
+            rain_intensity: rainInt,
+            rain_start_lap: rainInt > 0 ? getRainLap() : 0,
+            driver_noise: DRIVER_NOISE[driver] || 0.3,
+            optimize_pit: optimize,
+            pit_min: getPitMin(),
+            pit_max: getPitMax(),
+        };
+
+        const res = await fetch('/api/montecarlo', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+        });
+        const data = await res.json();
+        btn.textContent = '🎲 Run Monte Carlo';
+        btn.disabled = false;
+
+        if (data.error) { alert(data.error); return; }
+
+        document.getElementById('mc_results').style.display = 'block';
+        document.getElementById('mc_p10').textContent = data.p10_fmt;
+        document.getElementById('mc_p50').textContent = data.p50_fmt;
+        document.getElementById('mc_p90').textContent = data.p90_fmt;
+        document.getElementById('mc_nsims_display').textContent = data.n_sims;
+        document.getElementById('mc_sc_avg').textContent = data.sc_avg ? fmt(data.sc_avg) : 'N/A';
+        document.getElementById('mc_nosc_avg').textContent = data.nosc_avg ? fmt(data.nosc_avg) : 'N/A';
+        document.getElementById('mc_early_sc').textContent = data.early_sc_avg ? fmt(data.early_sc_avg) : 'N/A';
+        document.getElementById('mc_late_sc').textContent = data.late_sc_avg ? fmt(data.late_sc_avg) : 'N/A';
+        document.getElementById('mc_risk').textContent = `${data.risk_score}%`;
+
+        // Pit optimizer chart
+        if (data.pit_optimizer && data.pit_optimizer.length > 0) {
+            document.getElementById('mc_optimizer_section').style.display = 'block';
+            const optX = data.pit_optimizer.map(p => p.pit_lap);
+            const optY = data.pit_optimizer.map(p => p.p50);
+            const optP10 = data.pit_optimizer.map(p => p.p10);
+            const optP90 = data.pit_optimizer.map(p => p.p90);
+            Plotly.react('mc_optimizer_chart', [
+                {
+                    x: optX, y: optP90, fill: 'tonexty', fillcolor: 'rgba(239,68,68,0.15)',
+                    line: { color: 'transparent' }, name: 'P90', showlegend: false
+                },
+                {
+                    x: optX, y: optP10, fill: 'tozeroy', fillcolor: 'rgba(34,197,94,0.15)',
+                    line: { color: 'transparent' }, name: 'P10', showlegend: false
+                },
+                {
+                    x: optX, y: optY, mode: 'lines+markers', name: 'P50',
+                    line: { color: '#00d2ff', width: 3 }, marker: { size: 7, color: '#00d2ff' }
+                }
+            ], {
+                template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+                height: 250, margin: { l: 60, r: 20, t: 10, b: 40 },
+                xaxis: { title: 'Pit Lap' }, yaxis: { title: 'P50 Race Time (s)' }
+            });
+            if (data.best_pit) {
+                document.getElementById('mc_best_pit').textContent =
+                    `✅ Optimal pit lap: ${data.best_pit.pit_lap} (P50: ${fmt(data.best_pit.p50)})`;
+            }
+        }
+
+        // Distribution histogram
+        Plotly.react('mc_chart', [{
+            x: data.distribution, type: 'histogram', nbinsx: 40,
+            marker: { color: '#00d2ff', opacity: 0.7 }, name: 'Race Time'
+        }], {
+            template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+            height: 300, margin: { l: 60, r: 20, t: 10, b: 40 },
+            xaxis: { title: 'Total Race Time (s)' }, yaxis: { title: 'Frequency' },
+            shapes: [
+                {
+                    type: 'line', x0: data.p10, x1: data.p10, y0: 0, y1: 1, yref: 'paper',
+                    line: { color: '#22c55e', width: 2, dash: 'dash' }
+                },
+                {
+                    type: 'line', x0: data.p50, x1: data.p50, y0: 0, y1: 1, yref: 'paper',
+                    line: { color: '#00d2ff', width: 2, dash: 'dash' }
+                },
+                {
+                    type: 'line', x0: data.p90, x1: data.p90, y0: 0, y1: 1, yref: 'paper',
+                    line: { color: '#ef4444', width: 2, dash: 'dash' }
+                },
+            ],
+            annotations: [
+                {
+                    x: data.p10, y: 1, yref: 'paper', text: 'P10', showarrow: false,
+                    font: { color: '#22c55e', size: 10 }, yanchor: 'bottom'
+                },
+                {
+                    x: data.p50, y: 1, yref: 'paper', text: 'P50', showarrow: false,
+                    font: { color: '#00d2ff', size: 10 }, yanchor: 'bottom'
+                },
+                {
+                    x: data.p90, y: 1, yref: 'paper', text: 'P90', showarrow: false,
+                    font: { color: '#ef4444', size: 10 }, yanchor: 'bottom'
+                },
+            ]
+        });
+    }
+
+    // ── Scenario Forecasting ──────────────────────────────────
+    let scenarioCount = 0;
+
+    function addScenario() {
+        scenarioCount++;
+        const id = scenarioCount;
+        const names = ['Soft-Medium', 'Hard-Medium', 'Medium-Hard', 'Soft-Hard', 'Hard-Soft'];
+        const name = names[(id - 1) % names.length];
+        const div = document.createElement('div');
+        div.id = `scenario_${id}`;
+        div.className = 'bg-gray-700 rounded-xl p-4 flex gap-3 items-end flex-wrap';
+        div.innerHTML = `
+    <div class="flex-1 min-w-32">
+      <label class="text-gray-400 text-xs">Name</label>
+      <input type="text" value="${name}" id="sc_name_${id}"
+        class="w-full bg-gray-600 text-white rounded px-3 py-2 mt-1 text-sm">
+    </div>
+    <div>
+      <label class="text-gray-400 text-xs">Stint 1</label>
+      <select id="sc_s1_${id}" class="bg-gray-600 text-white rounded px-2 py-2 mt-1 text-sm">
+        ${COMPOUNDS.map(c => `<option>${c}</option>`).join('')}
+      </select>
+    </div>
+    <div>
+      <label class="text-gray-400 text-xs">Stint 2</label>
+      <select id="sc_s2_${id}" class="bg-gray-600 text-white rounded px-2 py-2 mt-1 text-sm">
+        ${COMPOUNDS.map((c, i) => `<option ${i === 1 ? 'selected' : ''}>${c}</option>`).join('')}
+      </select>
+    </div>
+    <div>
+      <label class="text-gray-400 text-xs">Pit Lap</label>
+      <input type="number" value="${20 + id * 3}" min="5" max="55" id="sc_pit_${id}"
+        class="w-20 bg-gray-600 text-white rounded px-2 py-2 mt-1 text-sm">
+    </div>
+    <button onclick="document.getElementById('scenario_${id}').remove()"
+      class="px-3 py-2 bg-red-900 text-red-300 rounded text-sm">✕</button>
+  `;
+        document.getElementById('scenario_list').appendChild(div);
+    }
+
+    addScenario(); addScenario(); addScenario();
+
+    async function runScenario() {
+        const btn = document.querySelector('[onclick="runScenario()"]');
+        btn.textContent = '⏳ Simulating...';
+        btn.disabled = true;
+
+        const scenarios = [];
+        for (let i = 1; i <= scenarioCount; i++) {
+            const el = document.getElementById(`scenario_${i}`);
+            if (!el) continue;
+            scenarios.push({
+                name: document.getElementById(`sc_name_${i}`).value,
+                stint1: document.getElementById(`sc_s1_${i}`).value,
+                stint2: document.getElementById(`sc_s2_${i}`).value,
+                pit_lap: parseInt(document.getElementById(`sc_pit_${i}`).value)
+            });
+        }
+
+        const driver = document.getElementById('sc_driver').value;
+        const res = await fetch('/api/scenario', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                year: SIM_YEAR, round: SIM_ROUND, session_type: SIM_SESSION,
+                driver, race_length: SIM_LAPS,
+                sc_prob: getScSC() / 100,
+                risk_tolerance: getScRisk(),
+                driver_noise: DRIVER_NOISE[driver] || 0.3,
+                n_sims: 300, scenarios
+            })
+        });
+        const data = await res.json();
+        btn.textContent = '📊 Compare Strategies';
+        btn.disabled = false;
+
+        if (data.error) { alert(data.error); return; }
+
+        document.getElementById('sc_results').style.display = 'block';
+
+        // Recommended banner
+        document.getElementById('sc_recommended').textContent =
+            `✅ Recommended Strategy: ${data.recommended} — based on your risk tolerance setting`;
+
+        const colors = ['#00d2ff', '#ff6b6b', '#ffd700', '#22c55e', '#a78bfa', '#fb923c'];
+
+        // Ranking cards
+        document.getElementById('sc_ranking').innerHTML = data.scenarios.map((s, i) => `
+    <div class="flex items-center gap-4 rounded-xl p-4 ${s.recommended ? 'bg-green-900 border border-green-600' : 'bg-gray-700'}">
+      <div class="text-2xl font-bold w-8" style="color:${colors[i % colors.length]}">#${s.rank}</div>
+      <div class="flex-1">
+        <div class="font-bold text-white flex items-center gap-2">
+          ${s.name}
+          ${s.recommended ? '<span class="text-xs bg-green-600 text-white px-2 py-0.5 rounded">✅ Recommended</span>' : ''}
+        </div>
+        <div class="text-gray-400 text-xs">${s.stint1} → ${s.stint2} · Pit lap ${s.pit_lap}</div>
+      </div>
+      <div class="text-center">
+        <div class="text-yellow-400 font-bold text-sm">🏆 ${s.win_pct}%</div>
+        <div class="text-gray-500 text-xs">win prob</div>
+      </div>
+      <div class="text-center">
+        <div class="text-orange-400 font-bold text-sm">⚠️ ${s.risk_score}%</div>
+        <div class="text-gray-500 text-xs">risk score</div>
+      </div>
+      <div class="text-right">
+        <div class="text-cyan-400 font-mono font-bold">${fmt(s.p50)}</div>
+        <div class="text-gray-500 text-xs">P10: ${fmt(s.p10)} · P90: ${fmt(s.p90)}</div>
+      </div>
+    </div>
+  `).join('');
+
+        // Distribution chart
+        Plotly.react('sc_chart',
+            data.scenarios.map((s, i) => ({
+                x: s.distribution, type: 'histogram', name: s.name,
+                marker: { color: colors[i % colors.length], opacity: 0.6 },
+                nbinsx: 30
+            })),
+            {
+                barmode: 'overlay',
+                template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+                height: 350, margin: { l: 60, r: 20, t: 10, b: 40 },
+                xaxis: { title: 'Total Race Time (s)' }, yaxis: { title: 'Frequency' },
+                legend: { title: { text: 'Strategy' } }
+            }
+        );
+    }
+</script>
+{% endblock %}

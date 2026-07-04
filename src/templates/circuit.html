@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+
+  <div class="mb-4">
+    <h1 class="text-3xl font-bold text-cyan-400">🏁 Circuit Intelligence</h1>
+    <p class="text-gray-400 mt-1">Historical performance analysis — <span id="circuit_title">{{ event_name }} · {{
+        circuit }}</span></p>
+  </div>
+
+  <!-- Loading state -->
+  <div id="ci_loading" class="text-center py-10 text-gray-400">
+    <div class="text-4xl mb-3">⏳</div>
+    <div>Loading circuit data...</div>
+  </div>
+
+  <div id="ci_content" style="display:none;">
+
+    <!-- KPI Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-gray-800 rounded-xl p-5 text-center">
+        <div class="text-gray-400 text-xs mb-1">Avg Lap Time</div>
+        <div id="ci_avg_lap" class="text-2xl font-bold text-cyan-400">—</div>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 text-center">
+        <div class="text-gray-400 text-xs mb-1">Best Lap Ever</div>
+        <div id="ci_best_lap" class="text-2xl font-bold text-green-400">—</div>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 text-center">
+        <div class="text-gray-400 text-xs mb-1">Overtaking Index</div>
+        <div id="ci_overtaking" class="text-2xl font-bold text-yellow-400">—</div>
+        <div class="text-gray-500 text-xs mt-1">higher = more action</div>
+      </div>
+      <div class="bg-gray-800 rounded-xl p-5 text-center">
+        <div class="text-gray-400 text-xs mb-1">SC Frequency</div>
+        <div id="ci_sc" class="text-2xl font-bold text-orange-400">—</div>
+        <div class="text-gray-500 text-xs mt-1">% of laps under SC</div>
+      </div>
+    </div>
+
+    <!-- Lap time evolution -->
+    <div class="bg-gray-800 rounded-xl p-6 mb-6">
+      <h2 class="text-xl font-bold text-white mb-3">📈 Lap Time Evolution by Season</h2>
+      <p class="text-gray-400 text-xs mb-3">How lap times have changed across seasons — regulation changes visible as
+        step changes.</p>
+      <div id="ci_evolution_chart" style="width:100%;height:300px;"></div>
+    </div>
+
+    <!-- Tyre degradation -->
+    <div class="bg-gray-800 rounded-xl p-6 mb-6">
+      <h2 class="text-xl font-bold text-white mb-3">📉 Tyre Degradation Curves</h2>
+      <div id="ci_deg_chart" style="width:100%;height:350px;"></div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
+      <!-- Driver dominance -->
+      <div class="bg-gray-800 rounded-xl p-5">
+        <h2 class="text-lg font-bold text-white mb-4">🏎️ Driver Kings — Best Lap Times</h2>
+        <div id="ci_drivers" class="space-y-2"></div>
+      </div>
+
+      <!-- Team dominance -->
+      <div class="bg-gray-800 rounded-xl p-5">
+        <h2 class="text-lg font-bold text-white mb-4">🏭 Team Dominance — Avg Lap</h2>
+        <div id="ci_teams" class="space-y-2"></div>
+      </div>
+    </div>
+
+    <!-- Compound usage -->
+    <div class="bg-gray-800 rounded-xl p-6">
+      <h2 class="text-xl font-bold text-white mb-3">🛞 Compound Usage History</h2>
+      <div id="ci_compounds_chart" style="width:100%;height:250px;"></div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const CI_CIRCUIT = "{{ circuit }}";
+
+  const COMPOUND_COLORS = {
+    'SOFT': '#FF3333', 'MEDIUM': '#FFFF00', 'HARD': '#CCCCCC',
+    'INTERMEDIATE': '#39B54A', 'WET': '#0067FF'
+  };
+
+  function fmtLap(s) {
+    const m = Math.floor(s / 60);
+    return `${m}:${(s % 60).toFixed(3).padStart(6, '0')}`;
+  }
+
+  async function loadCircuit() {
+    const encoded = encodeURIComponent(CI_CIRCUIT);
+    const res = await fetch(`/api/circuit-intelligence/${encoded}`);
+    const data = await res.json();
+
+    document.getElementById('ci_loading').style.display = 'none';
+    document.getElementById('ci_content').style.display = 'block';
+
+    if (data.error) {
+      document.getElementById('ci_content').innerHTML = `<div class="text-red-400 p-4">${data.error}</div>`;
+      return;
+    }
+
+    // KPIs
+    document.getElementById('ci_avg_lap').textContent = fmtLap(data.avg_lap_time);
+    document.getElementById('ci_best_lap').textContent = fmtLap(data.best_lap_time);
+    document.getElementById('ci_overtaking').textContent = `${data.overtaking_index}`;
+    document.getElementById('ci_sc').textContent = `${data.sc_ratio}%`;
+
+    // Season evolution
+    const seasons = data.season_evolution;
+    Plotly.react('ci_evolution_chart', [
+      {
+        x: seasons.map(s => s.season),
+        y: seasons.map(s => s.avg_lap),
+        mode: 'lines+markers', name: 'Avg Lap',
+        line: { color: '#00d2ff', width: 2 },
+        marker: { size: 8 },
+        hovertemplate: '%{x}<br>Avg: ' + '%{y:.3f}s<extra></extra>'
+      },
+      {
+        x: seasons.map(s => s.season),
+        y: seasons.map(s => s.best_lap),
+        mode: 'lines+markers', name: 'Best Lap',
+        line: { color: '#22c55e', width: 2, dash: 'dot' },
+        marker: { size: 6 },
+        hovertemplate: '%{x}<br>Best: %{y:.3f}s<extra></extra>'
+      }
+    ], {
+      template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+      height: 300, margin: { l: 70, r: 20, t: 10, b: 40 },
+      xaxis: { title: 'Season', dtick: 1 },
+      yaxis: { title: 'Lap Time (s)', autorange: 'reversed' }
+    });
+
+    // Tyre degradation
+    const degTraces = Object.entries(data.compound_deg).map(([comp, d]) => ({
+      x: d.tyre_life, y: d.avg_times,
+      mode: 'lines+markers', name: comp,
+      line: { color: COMPOUND_COLORS[comp] || '#888', width: 2 },
+      marker: { size: 5 },
+      hovertemplate: `${comp}<br>Life: %{x}<br>Avg: %{y:.3f}s<extra></extra>`
+    }));
+    Plotly.react('ci_deg_chart', degTraces, {
+      template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+      height: 350, margin: { l: 70, r: 20, t: 10, b: 40 },
+      xaxis: { title: 'Tyre Life (laps)' },
+      yaxis: { title: 'Avg Lap Time (s)' }
+    });
+
+    // Driver kings
+    const bestLaps = data.driver_stats.map(d => d.best_lap);
+    const minLap = Math.min(...bestLaps);
+    const maxLap = Math.max(...bestLaps);
+    document.getElementById('ci_drivers').innerHTML = data.driver_stats.map((d, i) => {
+      const pct = maxLap > minLap ? Math.round((1 - (d.best_lap - minLap) / (maxLap - minLap)) * 100) : 100;
+      return `
+      <div class="flex items-center gap-2">
+        <div class="text-gray-500 text-xs w-5">#${i + 1}</div>
+        <div class="text-white font-bold text-sm w-10">${d.driver}</div>
+        <div class="flex-1 bg-gray-700 rounded-full h-3">
+          <div class="h-3 rounded-full bg-cyan-400" style="width:${pct}%"></div>
+        </div>
+        <div class="text-cyan-400 font-mono text-xs w-20 text-right">${fmtLap(d.best_lap)}</div>
+        <div class="text-gray-500 text-xs w-20 text-right">${d.seasons.join(', ')}</div>
+      </div>`;
+    }).join('');
+
+    // Team dominance
+    const teamAvgs = data.team_stats.map(t => t.avg_lap);
+    const minTeam = Math.min(...teamAvgs);
+    const maxTeam = Math.max(...teamAvgs);
+    document.getElementById('ci_teams').innerHTML = data.team_stats.map((t, i) => {
+      const pct = maxTeam > minTeam ? Math.round((1 - (t.avg_lap - minTeam) / (maxTeam - minTeam)) * 100) : 100;
+      return `
+      <div class="flex items-center gap-2">
+        <div class="text-gray-500 text-xs w-5">#${i + 1}</div>
+        <div class="text-white text-xs w-32 truncate">${t.team}</div>
+        <div class="flex-1 bg-gray-700 rounded-full h-3">
+          <div class="h-3 rounded-full bg-purple-400" style="width:${pct}%"></div>
+        </div>
+        <div class="text-purple-400 font-mono text-xs w-20 text-right">${fmtLap(t.avg_lap)}</div>
+      </div>`;
+    }).join('');
+
+    // Compound usage
+    const compLabels = Object.keys(data.compound_usage);
+    const compValues = Object.values(data.compound_usage);
+    Plotly.react('ci_compounds_chart', [{
+      labels: compLabels, values: compValues, type: 'pie',
+      marker: { colors: compLabels.map(c => COMPOUND_COLORS[c] || '#888') },
+      hovertemplate: '%{label}<br>%{value} laps (%{percent})<extra></extra>'
+    }], {
+      template: 'plotly_dark', paper_bgcolor: '#1f2937',
+      height: 250, margin: { l: 20, r: 20, t: 10, b: 10 },
+      showlegend: true
+    });
+  }
+
+  loadCircuit();
+</script>
+{% endblock %}

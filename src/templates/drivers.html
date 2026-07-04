@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+
+  <div class="mb-4">
+    <h1 class="text-3xl font-bold text-cyan-400">🧬 Driver Style Embeddings</h1>
+    <p class="text-gray-400 mt-1">Driving style fingerprints from telemetry — who drives like whom?</p>
+  </div>
+
+  <!-- Controls -->
+  <div class="bg-gray-800 rounded-xl p-5 mb-6">
+    <div class="flex flex-wrap gap-4 items-end">
+      <div>
+        <label class="text-gray-400 text-xs">Season</label>
+        <select id="emb_year" class="bg-gray-700 text-white rounded px-3 py-2 mt-1 text-sm">
+          {% for s in seasons %}<option value="{{ s }}" {% if s == selected_year %}selected{% endif %}>{{ s }}</option>{% endfor %}
+        </select>
+      </div>
+      <div>
+        <label class="text-gray-400 text-xs">Races to include</label>
+        <select id="emb_rounds" class="bg-gray-700 text-white rounded px-3 py-2 mt-1 text-sm">
+          <option value="all">All completed races</option>
+          <option value="last5">Last 5 races</option>
+          <option value="last10">Last 10 races</option>
+        </select>
+      </div>
+      <button onclick="loadEmbeddings()"
+        class="px-6 py-2 rounded-lg font-bold text-white text-sm"
+        style="background:#FF1E1E;">
+        🧬 Generate Embeddings
+      </button>
+      <div id="emb_loading" style="display:none;" class="text-gray-400 text-sm">
+        ⏳ Extracting telemetry features... (this may take 1-2 mins)
+      </div>
+    </div>
+    <div class="flex gap-2 mt-3">
+      <button onclick="setMode('season')" id="btn_season"
+        class="px-4 py-2 rounded-lg text-sm font-medium bg-cyan-600 text-white">
+        📅 Current Season
+      </button>
+      <button onclick="setMode('alltime')" id="btn_alltime"
+        class="px-4 py-2 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600">
+        ⏳ All-Time (2018–2026)
+      </button>
+    </div>
+  </div>
+
+  <!-- PCA variance -->
+  <div id="pca_info" style="display:none;" class="bg-gray-800 rounded-xl p-4 mb-4 text-sm text-gray-400">
+    📊 PCA variance explained: <span id="pca_var1" class="text-cyan-400 font-bold"></span> (PC1) +
+    <span id="pca_var2" class="text-cyan-400 font-bold"></span> (PC2)
+    = <span id="pca_total" class="text-white font-bold"></span> total
+  </div>
+
+  <!-- Main embedding chart -->
+  <div class="bg-gray-800 rounded-xl p-6 mb-6">
+    <h2 class="text-xl font-bold text-white mb-2">🗺️ Driver Style Map</h2>
+    <p class="text-gray-400 text-xs mb-4">
+      Position = driving style fingerprint from telemetry.
+      Closer = more similar style. Color = team.
+      <strong class="text-white">Click a driver</strong> to see their profile.
+    </p>
+    <div id="embedding_chart" style="width:100%;height:550px;"></div>
+  </div>
+
+  <!-- Selected driver profile -->
+  <div id="driver_profile" style="display:none;" class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
+    <!-- Style radar -->
+    <div class="bg-gray-800 rounded-xl p-5">
+      <h3 class="text-white font-bold mb-3">🎯 <span id="profile_driver_name">—</span> Style Profile</h3>
+      <p class="text-gray-400 text-xs mb-3">Team: <span id="profile_team" class="text-white"></span> · Races: <span id="profile_races"></span></p>
+      <div id="radar_chart" style="width:100%;height:300px;"></div>
+    </div>
+
+    <!-- Similar drivers -->
+    <div class="bg-gray-800 rounded-xl p-5">
+      <h3 class="text-white font-bold mb-4">👥 Most Similar Driving Styles</h3>
+      <div id="similar_drivers" class="space-y-3"></div>
+
+      <!-- Feature breakdown -->
+      <h3 class="text-white font-bold mt-5 mb-3">📊 Feature Breakdown</h3>
+      <div id="feature_bars" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <!-- All-time similar drivers -->
+  <div id="alltime_section" style="display:none;" class="bg-gray-800 rounded-xl p-6 mb-6">
+    <h2 class="text-xl font-bold text-white mb-1">⏳ All-Time Most Similar — <span id="alltime_driver_name"></span></h2>
+    <p class="text-gray-400 text-xs mb-4">Drivers from 2018–2026 with most similar style fingerprint based on lap consistency, tyre management and pace patterns.</p>
+    <div id="alltime_list" class="space-y-2"></div>
+  </div>
+
+  <!-- All drivers table -->
+  <div class="bg-gray-800 rounded-xl p-6">
+    <h2 class="text-xl font-bold text-white mb-4">📋 All Driver Profiles</h2>
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs" id="drivers_table">
+        <thead>
+          <tr class="text-gray-400 border-b border-gray-700">
+            <th class="text-left py-2 pr-4">Driver</th>
+            <th class="text-left py-2 pr-4">Team</th>
+            <th class="text-left py-2 pr-4">Brake Agg.</th>
+            <th class="text-left py-2 pr-4">Throttle Smooth</th>
+            <th class="text-left py-2 pr-4">Top Speed</th>
+            <th class="text-left py-2 pr-4">Consistency</th>
+            <th class="text-left py-2 pr-4">Tyre Mgmt</th>
+            <th class="text-left py-2">Races</th>
+          </tr>
+        </thead>
+        <tbody id="drivers_tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let allDriverData = [];
+let currentMode = 'season';
+
+function setMode(mode) {
+  currentMode = mode;
+  document.getElementById('btn_season').className  = mode === 'season'
+    ? 'px-4 py-2 rounded-lg text-sm font-medium bg-cyan-600 text-white'
+    : 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600';
+  document.getElementById('btn_alltime').className = mode === 'alltime'
+    ? 'px-4 py-2 rounded-lg text-sm font-medium bg-cyan-600 text-white'
+    : 'px-4 py-2 rounded-lg text-sm font-medium bg-gray-700 text-gray-300 hover:bg-gray-600';
+
+  if (mode === 'alltime') {
+    document.getElementById('emb_rounds').style.display = 'none';
+    document.getElementById('emb_loading').textContent  = '⏳ Loading all-time embeddings from cache...';
+  } else {
+    document.getElementById('emb_rounds').style.display = 'block';
+    document.getElementById('emb_loading').textContent  = '⏳ Extracting telemetry features... (this may take 1-2 mins)';
+  }
+}
+
+const FEATURE_LABELS = {
+  'brake_aggression':    'Brake Aggression',
+  'throttle_smoothness': 'Throttle Smoothness',
+  'throttle_attack':     'Throttle Attack',
+  'top_speed':           'Top Speed',
+  'coasting_ratio':      'Coasting Ratio',
+  'gear_aggression':     'Gear Aggression',
+  'consistency':         'Consistency',
+  'tyre_management':     'Tyre Management'
+};
+
+async function loadEmbeddings() {
+  const year   = document.getElementById('emb_year').value;
+  const rounds = document.getElementById('emb_rounds').value;
+  const btn    = document.querySelector('[onclick="loadEmbeddings()"]');
+
+  btn.disabled = true;
+  btn.textContent = '⏳ Computing...';
+  document.getElementById('emb_loading').style.display = 'block';
+
+  try {
+    const res  = await fetch(`/api/driver-embeddings/${year}?rounds=${rounds}&mode=${currentMode}`);
+    const data = await res.json();
+
+    document.getElementById('emb_loading').style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '🧬 Generate Embeddings';
+
+    if (data.error) { alert(data.error); return; }
+
+    allDriverData = data.drivers;
+
+    // PCA variance
+    document.getElementById('pca_info').style.display = 'block';
+    document.getElementById('pca_var1').textContent  = `${data.pca_variance[0]}%`;
+    document.getElementById('pca_var2').textContent  = `${data.pca_variance[1]}%`;
+    document.getElementById('pca_total').textContent = `${data.pca_variance[0] + data.pca_variance[1]}%`;
+
+    renderEmbeddingChart(data.drivers);
+    renderDriversTable(data.drivers);
+
+  } catch(e) {
+    document.getElementById('emb_loading').style.display = 'none';
+    btn.disabled = false;
+    btn.textContent = '🧬 Generate Embeddings';
+    alert('Error: ' + e.message);
+  }
+}
+
+function renderEmbeddingChart(drivers) {
+  // Group by team for traces
+  const teams = {};
+  drivers.forEach(d => {
+    if (!teams[d.team]) teams[d.team] = [];
+    teams[d.team].push(d);
+  });
+
+  const traces = Object.entries(teams).map(([team, drvs]) => ({
+    x:    drvs.map(d => d.x),
+    y:    drvs.map(d => d.y),
+    mode: 'markers+text',
+    name: team,
+    text: drvs.map(d => d.driver),
+    textposition: 'top center',
+    textfont: { size: 11, color: '#ffffff' },
+    marker: {
+      size: 18,
+      color: drvs[0].color,
+      line: { color: '#ffffff', width: 1.5 }
+    },
+    customdata: drvs.map(d => d.driver),
+    hovertemplate: '<b>%{text}</b><br>' + team +
+      '<br>PC1: %{x:.3f}<br>PC2: %{y:.3f}<extra></extra>'
+  }));
+
+  const layout = {
+    template: 'plotly_dark',
+    paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+    height: 550, margin: { l: 60, r: 20, t: 20, b: 60 },
+    xaxis: { title: 'PC1 — Aggression / Attack Style', zeroline: true, zerolinecolor: '#374151' },
+    yaxis: { title: 'PC2 — Consistency / Smoothness', zeroline: true, zerolinecolor: '#374151' },
+    legend: { title: { text: 'Team' }, bgcolor: '#111827' },
+    hovermode: 'closest'
+  };
+
+  Plotly.react('embedding_chart', traces, layout);
+
+  // Click handler
+  document.getElementById('embedding_chart').on('plotly_click', function(e) {
+    const driverName = e.points[0].text;
+    const driver     = allDriverData.find(d => d.driver === driverName);
+    if (driver) showDriverProfile(driver);
+  });
+}
+
+function showDriverProfile(driver) {
+  document.getElementById('driver_profile').style.display = 'grid';
+  document.getElementById('profile_driver_name').textContent = driver.driver;
+  document.getElementById('profile_team').textContent  = driver.team;
+  document.getElementById('profile_races').textContent = driver.races;
+
+  // Radar chart
+  const features = Object.keys(FEATURE_LABELS);
+  const values   = features.map(f => driver.features[f] || 0);
+
+  // Normalize 0-1 for radar
+  const mins = features.map((f,i) => Math.min(...allDriverData.map(d => d.features[f] || 0)));
+  const maxs = features.map((f,i) => Math.max(...allDriverData.map(d => d.features[f] || 0)));
+  const norm  = values.map((v,i) => maxs[i] > mins[i] ? (v - mins[i]) / (maxs[i] - mins[i]) : 0.5);
+
+  Plotly.react('radar_chart', [{
+    type: 'scatterpolar',
+    r:    [...norm, norm[0]],
+    theta: [...features.map(f => FEATURE_LABELS[f]), FEATURE_LABELS[features[0]]],
+    fill: 'toself',
+    fillcolor: driver.color + '44',
+    line: { color: driver.color, width: 2 },
+    name: driver.driver
+  }], {
+    template: 'plotly_dark',
+    paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+    height: 300, margin: { l: 40, r: 40, t: 20, b: 20 },
+    polar: { radialaxis: { visible: true, range: [0, 1] } }
+  });
+
+  // Similar drivers
+  document.getElementById('similar_drivers').innerHTML = driver.similar.map(([sim, score]) => {
+    const simDriver = allDriverData.find(d => d.driver === sim);
+    const color     = simDriver ? simDriver.color : '#888';
+    const pct       = Math.round(score * 100);
+    return `
+      <div class="flex items-center gap-3 cursor-pointer hover:bg-gray-700 rounded p-2 transition"
+           onclick="showDriverProfile(allDriverData.find(d=>d.driver==='${sim}'))">
+        <div class="w-2 h-8 rounded" style="background:${color}"></div>
+        <div class="flex-1">
+          <div class="text-white font-bold text-sm">${sim}</div>
+          <div class="text-gray-400 text-xs">${simDriver ? simDriver.team : ''}</div>
+        </div>
+        <div class="text-right">
+          <div class="text-cyan-400 font-bold text-sm">${pct}%</div>
+          <div class="text-gray-500 text-xs">similar</div>
+        </div>
+        <div class="w-24 bg-gray-700 rounded-full h-2">
+          <div class="h-2 rounded-full" style="width:${pct}%;background:${color}"></div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // Feature bars
+  document.getElementById('feature_bars').innerHTML = Object.entries(FEATURE_LABELS).map(([key, label]) => {
+    const val  = driver.features[key] || 0;
+    const mins = Math.min(...allDriverData.map(d => d.features[key] || 0));
+    const maxs = Math.max(...allDriverData.map(d => d.features[key] || 0));
+    const pct  = maxs > mins ? Math.round((val - mins) / (maxs - mins) * 100) : 50;
+    return `
+      <div class="flex items-center gap-2">
+        <div class="text-gray-400 text-xs w-36 shrink-0">${label}</div>
+        <div class="flex-1 bg-gray-700 rounded-full h-3">
+          <div class="h-3 rounded-full" style="width:${pct}%;background:${driver.color}"></div>
+        </div>
+        <div class="text-xs font-mono w-16 text-right text-gray-300">${val.toFixed(2)}</div>
+      </div>
+    `;
+  }).join('');
+
+  // Load all-time similar
+  document.getElementById('alltime_section').style.display = 'block';
+  document.getElementById('alltime_driver_name').textContent = driver.driver;
+  document.getElementById('alltime_list').innerHTML = '<div class="text-gray-500 text-sm">⏳ Loading historical comparison...</div>';
+
+  fetch(`/api/driver-alltime-similar/${driver.driver}?current_year={{ selected_year }}`)
+    .then(r => r.json())
+    .then(data => {
+      if (data.error) {
+        document.getElementById('alltime_list').innerHTML = `<div class="text-red-400 text-sm">${data.error}</div>`;
+        return;
+      }
+      document.getElementById('alltime_list').innerHTML = data.similar.map((s, i) => `
+        <div class="flex items-center gap-3 bg-gray-700 rounded-lg p-3">
+          <div class="text-gray-500 text-sm w-6">#${i+1}</div>
+          <div class="flex-1">
+            <div class="text-white font-bold text-sm">${s.driver}</div>
+            <div class="text-gray-500 text-xs">${s.seasons.join(', ')} · ${s.laps.toLocaleString()} laps</div>
+          </div>
+          <div class="text-cyan-400 font-bold text-sm">${s.pct}%</div>
+          <div class="w-32 bg-gray-600 rounded-full h-2">
+            <div class="h-2 rounded-full bg-cyan-400" style="width:${s.pct}%"></div>
+          </div>
+        </div>
+      `).join('');
+    });
+
+  // Scroll to profile
+  document.getElementById('driver_profile').scrollIntoView({ behavior: 'smooth' });
+}
+
+function renderDriversTable(drivers) {
+  document.getElementById('drivers_tbody').innerHTML = drivers
+    .sort((a,b) => a.driver.localeCompare(b.driver))
+    .map(d => `
+      <tr class="border-b border-gray-700 hover:bg-gray-750 cursor-pointer"
+          onclick="showDriverProfile(allDriverData.find(x=>x.driver==='${d.driver}'))">
+        <td class="py-2 pr-4 font-bold" style="color:${d.color}">${d.driver}</td>
+        <td class="py-2 pr-4 text-gray-400">${d.team}</td>
+        <td class="py-2 pr-4 font-mono text-gray-300">${d.features.brake_aggression.toFixed(1)}</td>
+        <td class="py-2 pr-4 font-mono text-gray-300">${d.features.throttle_smoothness.toFixed(1)}</td>
+        <td class="py-2 pr-4 font-mono text-gray-300">${d.features.top_speed.toFixed(0)}</td>
+        <td class="py-2 pr-4 font-mono text-gray-300">${d.features.consistency.toFixed(2)}</td>
+        <td class="py-2 pr-4 font-mono text-gray-300">${d.features.tyre_management.toFixed(2)}</td>
+        <td class="py-2 text-gray-400">${d.races}</td>
+      </tr>
+    `).join('');
+}
+</script>
+{% endblock %}

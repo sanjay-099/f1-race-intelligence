@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+  <div class="mb-6">
+    <h1 class="text-3xl font-bold text-cyan-400">🛞 Tyre Performance Lab</h1>
+    <p class="text-gray-400 mt-1">Compound degradation curves and performance analysis — {{ event_name }} {{ selected_year }}</p>
+  </div>
+
+  {% if error %}
+  <div class="bg-red-900 border border-red-600 rounded-xl p-4 mb-6 text-red-300">
+    ⚠️ {{ error }}
+  </div>
+  {% endif %}
+
+  <!-- Compound summary cards -->
+  <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+    {% for c in comp_summary %}
+    <div class="bg-gray-800 rounded-xl p-4 text-center border-t-4" style="border-color: {{ c.color }}">
+      <div class="font-bold text-white text-sm mb-2">{{ c.compound }}</div>
+      <div class="text-2xl font-bold" style="color: {{ c.color }}">{{ c.best_lap }}s</div>
+      <div class="text-gray-400 text-xs mt-1">Best lap</div>
+      <div class="text-gray-400 text-xs">Avg: {{ c.avg_lap }}s</div>
+      <div class="text-gray-500 text-xs mt-1">{{ c.total_laps }} laps · {{ c.drivers }} drivers</div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- Degradation chart -->
+  <div class="bg-gray-800 rounded-xl p-6 mb-8">
+    <h2 class="text-xl font-bold text-white mb-2">📉 Degradation Curves</h2>
+    <p class="text-gray-400 text-sm mb-4">Average lap time vs tyre age per compound. Steeper slope = faster degradation.</p>
+    <div id="deg_chart" style="width:100%;height:450px;"></div>
+  </div>
+
+  <!-- Compound comparison table -->
+  <div class="bg-gray-800 rounded-xl p-6">
+    <h2 class="text-xl font-bold text-white mb-4">📊 Compound Rankings</h2>
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="text-gray-400 border-b border-gray-700">
+          <th class="text-left py-2 pr-6">Compound</th>
+          <th class="text-left py-2 pr-6">Best Lap</th>
+          <th class="text-left py-2 pr-6">Avg Lap</th>
+          <th class="text-left py-2 pr-6">Total Laps</th>
+          <th class="text-left py-2">Drivers Used</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for c in comp_summary %}
+        <tr class="border-b border-gray-700">
+          <td class="py-3 pr-6">
+            <span class="px-2 py-1 rounded text-xs font-bold" style="background: {{ c.color }}22; color: {{ c.color }}">
+              {{ c.compound }}
+            </span>
+          </td>
+          <td class="py-3 pr-6 font-mono text-cyan-400">{{ c.best_lap }}s</td>
+          <td class="py-3 pr-6 font-mono text-gray-300">{{ c.avg_lap }}s</td>
+          <td class="py-3 pr-6 text-gray-400">{{ c.total_laps }}</td>
+          <td class="py-3 text-gray-400">{{ c.drivers }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<script>
+const DEG_DATA = {{ deg_data | safe }};
+
+const traces = Object.entries(DEG_DATA).map(([compound, data]) => ({
+  x: data.tyre_life,
+  y: data.avg_time,
+  name: compound,
+  mode: 'lines+markers',
+  line: { color: data.color, width: 3 },
+  marker: { size: 6, color: data.color },
+  hovertemplate: `${compound}<br>Tyre Life: %{x} laps<br>Avg: %{y:.3f}s<extra></extra>`
+}));
+
+Plotly.react('deg_chart', traces, {
+  template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+  height: 450, margin: { l: 60, r: 20, t: 20, b: 40 },
+  xaxis: { title: 'Tyre Age (laps)' },
+  yaxis: { title: 'Avg Lap Time (s)' },
+  legend: { title: { text: 'Compound' } }
+});
+</script>
+{% endblock %}

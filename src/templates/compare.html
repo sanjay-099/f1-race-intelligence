@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-cyan-400">📊 Session Comparison</h1>
+        <p class="text-gray-400 mt-1">Compare pace evolution across all sessions</p>
+    </div>
+
+    <div id="loading" class="text-center py-20 text-gray-400">
+        <div class="text-4xl mb-4">⏳</div>
+        <div>Loading session data...</div>
+    </div>
+
+    <div id="content" style="display:none;">
+        <!-- Session tabs -->
+        <div class="flex gap-2 mb-6 flex-wrap" id="session_tabs"></div>
+
+        <!-- Pace evolution chart -->
+        <div class="bg-gray-800 rounded-xl p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-4">⚡ Fastest Lap by Session</h2>
+            <div id="pace_chart" style="width:100%;height:400px;"></div>
+        </div>
+
+        <!-- Driver comparison table -->
+        <div class="bg-gray-800 rounded-xl p-6 mb-6">
+            <h2 class="text-xl font-bold text-white mb-2">🏎️ Driver Rankings</h2>
+            <p class="text-gray-400 text-sm mb-4">Click a session tab above to filter</p>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm" id="driver_table">
+                    <thead>
+                        <tr class="text-gray-400 border-b border-gray-700">
+                            <th class="text-left py-2 pr-4">Rank</th>
+                            <th class="text-left py-2 pr-4">Driver</th>
+                            <th class="text-left py-2 pr-4">Best Lap</th>
+                            <th class="text-left py-2 pr-4">Gap</th>
+                            <th class="text-left py-2">Avg Lap</th>
+                        </tr>
+                    </thead>
+                    <tbody id="driver_tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- FP to Race correlation -->
+        <div class="bg-gray-800 rounded-xl p-6">
+            <h2 class="text-xl font-bold text-white mb-4">📈 Sessions → Race Correlation</h2>
+            <div id="corr_chart" style="width:100%;height:400px;"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const YEAR = {{ selected_year }};
+    const ROUND = {{ selected_round }};
+    let allData = {};
+    let activeSession = null;
+
+    async function loadData() {
+        const res = await fetch(`/api/compare/${YEAR}/${ROUND}`);
+        const data = await res.json();
+        if (data.error) {
+            document.getElementById('loading').innerHTML = `<div class="text-red-400">⚠️ ${data.error}</div>`;
+            return;
+        }
+        allData = data.sessions;
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('content').style.display = 'block';
+
+        buildTabs();
+        buildPaceChart();
+
+        // Default to Race, fallback to first available
+        const defaultSession = allData['R'] ? 'R' : Object.keys(allData)[0];
+        showSession(defaultSession);
+    }
+
+    function buildTabs() {
+        const order = ['FP1', 'FP2', 'FP3', 'SQ', 'Q', 'S', 'R'];
+        const labels = {
+            'FP1': '🔧 FP1', 'FP2': '🔧 FP2', 'FP3': '🔧 FP3',
+            'SQ': '🏁 Sprint Quali', 'Q': '🏁 Qualifying',
+            'S': '⚡ Sprint', 'R': '🏎️ Race'
+        };
+        const tabs = document.getElementById('session_tabs');
+        tabs.innerHTML = '';
+        order.forEach(st => {
+            if (!allData[st]) return;
+            const btn = document.createElement('button');
+            btn.id = `tab_${st}`;
+            btn.textContent = labels[st] || st;
+            btn.className = 'px-4 py-2 rounded-lg text-sm font-medium transition-all bg-gray-700 text-gray-300 hover:bg-gray-600';
+            btn.onclick = () => showSession(st);
+            tabs.appendChild(btn);
+        });
+    }
+
+    function showSession(st) {
+        activeSession = st;
+        // Update tab styles
+        document.querySelectorAll('#session_tabs button').forEach(b => {
+            b.className = 'px-4 py-2 rounded-lg text-sm font-medium transition-all bg-gray-700 text-gray-300 hover:bg-gray-600';
+        });
+        const activeBtn = document.getElementById(`tab_${st}`);
+        if (activeBtn) activeBtn.className = 'px-4 py-2 rounded-lg text-sm font-medium bg-cyan-600 text-white';
+
+        // Update table
+        const session = allData[st];
+        const tbody = document.getElementById('driver_tbody');
+        tbody.innerHTML = session.drivers.map(d => `
+    <tr class="border-b border-gray-700 hover:bg-gray-750">
+      <td class="py-3 pr-4 text-gray-500">#${d.Rank}</td>
+      <td class="py-3 pr-4 font-bold text-white">${d.Driver}</td>
+      <td class="py-3 pr-4 font-mono text-cyan-400">${d.BestLap}s</td>
+      <td class="py-3 pr-4 font-mono ${d.GapToFastest === 0 ? 'text-green-400' : 'text-gray-300'}">
+        ${d.GapToFastest === 0 ? '— Fastest' : '+' + d.GapToFastest + 's'}
+      </td>
+      <td class="py-3 font-mono text-gray-400">${d.AvgLap}s</td>
+    </tr>
+  `).join('');
+    }
+
+    function buildPaceChart() {
+        const order = ['FP1', 'FP2', 'FP3', 'SQ', 'Q', 'S', 'R'];
+        const sessions = order.filter(s => allData[s]);
+        const fastest = sessions.map(s => allData[s].fastest);
+
+        Plotly.react('pace_chart', [{
+            x: sessions, y: fastest, type: 'scatter', mode: 'lines+markers',
+            line: { color: '#00d2ff', width: 3 },
+            marker: { size: 10, color: '#00d2ff' },
+            hovertemplate: '%{x}<br>Fastest: %{y:.3f}s<extra></extra>'
+        }], {
+            template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+            height: 400, margin: { l: 60, r: 20, t: 20, b: 40 },
+            xaxis: { title: 'Session' },
+            yaxis: { title: 'Fastest Lap (s)', autorange: 'reversed' }
+        });
+
+        // FP vs Race correlation
+        buildCorrChart(sessions);
+    }
+
+    function buildCorrChart(sessions) {
+        const raceSess = allData['R'];
+        if (!raceSess) {
+            document.getElementById('corr_chart').innerHTML =
+                '<p class="text-gray-500 text-center py-10">Race data not yet available for correlation</p>';
+            return;
+        }
+
+        const raceMap = {};
+        raceSess.drivers.forEach(d => raceMap[d.Driver] = d.Rank);
+
+        // Include FP1/FP2/FP3 + Q + SQ + S (everything except Race itself)
+        const corrSessions = ['FP1', 'FP2', 'FP3', 'SQ', 'Q', 'S'].filter(s => allData[s]);
+
+        if (corrSessions.length === 0) {
+            document.getElementById('corr_chart').innerHTML =
+                '<p class="text-gray-500 text-center py-10">No other session data available for correlation</p>';
+            return;
+        }
+
+        const sessionLabels = {
+            'FP1': 'Practice 1', 'FP2': 'Practice 2', 'FP3': 'Practice 3',
+            'SQ': 'Sprint Quali', 'Q': 'Qualifying', 'S': 'Sprint'
+        };
+
+        const colorMap = {
+            'FP1': '#60a5fa', 'FP2': '#34d399', 'FP3': '#a78bfa',
+            'SQ': '#f59e0b', 'Q': '#00d2ff', 'S': '#ff6b6b'
+        };
+
+        const traces = corrSessions.map(st => {
+            const stData = allData[st].drivers;
+            const common = stData.filter(d => raceMap[d.Driver]);
+            return {
+                x: common.map(d => d.Rank),
+                y: common.map(d => raceMap[d.Driver]),
+                mode: 'markers+text',
+                name: sessionLabels[st] || st,
+                text: common.map(d => d.Driver),
+                textposition: 'top center',
+                marker: { size: 9, color: colorMap[st] || '#888' },
+                hovertemplate: `%{text}<br>${sessionLabels[st]} Rank: %{x}<br>Race Position: %{y}<extra></extra>`
+            };
+        });
+
+        // Add perfect correlation line
+        const maxRank = Math.max(...Object.values(raceMap));
+        traces.push({
+            x: [1, maxRank], y: [1, maxRank],
+            mode: 'lines', name: 'Perfect Correlation',
+            line: { color: '#ffffff', width: 1, dash: 'dot' },
+            hoverinfo: 'skip'
+        });
+
+        Plotly.react('corr_chart', traces, {
+            template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+            height: 450, margin: { l: 60, r: 20, t: 20, b: 40 },
+            xaxis: { title: 'Session Rank', autorange: 'reversed' },
+            yaxis: { title: 'Race Position', autorange: 'reversed' },
+            legend: { title: { text: 'Session' } }
+        });
+    }
+
+    loadData();
+</script>
+{% endblock %}

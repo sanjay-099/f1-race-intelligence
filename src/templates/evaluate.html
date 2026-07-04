@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+
+    <!-- Header -->
+    <div class="mb-8">
+        <h1 class="text-3xl font-bold text-cyan-400">📈 Model Evaluation Lab</h1>
+        <p class="text-gray-400 mt-1">XGBoost tyre degradation model — performance across all circuits and seasons</p>
+    </div>
+
+    <!-- Top KPI Cards -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-gray-800 rounded-xl p-5 text-center">
+            <div class="text-gray-400 text-sm mb-1">Model Type</div>
+            <div class="text-white font-bold text-lg">{{ metadata.get('model_type', 'XGBoost') }}</div>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-5 text-center">
+            <div class="text-gray-400 text-sm mb-1">Overall MAE</div>
+            <div class="text-cyan-400 font-bold text-2xl">{{ metadata.get('mae_seconds', '—') }}s</div>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-5 text-center">
+            <div class="text-gray-400 text-sm mb-1">R² Score</div>
+            <div class="text-green-400 font-bold text-2xl">{{ metadata.get('r2_score', '—') }}</div>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-5 text-center">
+            <div class="text-gray-400 text-sm mb-1">Training Laps</div>
+            <div class="text-yellow-400 font-bold text-2xl">{{ "{:,}".format(metadata.get('total_laps', 0)) }}</div>
+        </div>
+    </div>
+
+    <!-- Training Coverage -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-gray-800 rounded-xl p-5">
+            <div class="text-gray-400 text-sm mb-2">Seasons Covered</div>
+            <div class="flex flex-wrap gap-2">
+                {% for s in metadata.get('seasons', []) %}
+                <span class="bg-cyan-900 text-cyan-300 text-xs px-2 py-1 rounded">{{ s }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-5">
+            <div class="text-gray-400 text-sm mb-2">Compounds Trained</div>
+            <div class="flex flex-wrap gap-2">
+                {% for c in metadata.get('compounds', []) %}
+                <span class="text-xs px-2 py-1 rounded font-bold
+          {% if c == 'SOFT' %}bg-red-900 text-red-300
+          {% elif c == 'MEDIUM' %}bg-yellow-900 text-yellow-300
+          {% elif c == 'HARD' %}bg-gray-600 text-white
+          {% elif c == 'INTERMEDIATE' %}bg-green-900 text-green-300
+          {% elif c == 'WET' %}bg-blue-900 text-blue-300
+          {% else %}bg-gray-700 text-gray-300{% endif %}">
+                    {{ c }}
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="bg-gray-800 rounded-xl p-5">
+            <div class="text-gray-400 text-sm mb-2">Regulation Eras</div>
+            {% for k, v in metadata.get('reg_eras', {}).items() %}
+            <div class="text-xs text-gray-300 mb-1">
+                <span class="text-cyan-400 font-bold">Era {{ k }}:</span> {{ v }}
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Season MAE Table -->
+    <div class="bg-gray-800 rounded-xl p-6 mb-8">
+        <h2 class="text-xl font-bold text-white mb-4">📅 MAE by Season</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-400 border-b border-gray-700">
+                        <th class="text-left py-2 pr-6">Season</th>
+                        <th class="text-left py-2 pr-6">Era</th>
+                        <th class="text-left py-2 pr-6">MAE (s)</th>
+                        <th class="text-left py-2 pr-6">Laps</th>
+                        <th class="text-left py-2">Accuracy Bar</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for s in season_stats %}
+                    <tr class="border-b border-gray-700 hover:bg-gray-750">
+                        <td class="py-3 pr-6 font-bold text-white">{{ s.season }}</td>
+                        <td class="py-3 pr-6 text-gray-400 text-xs">{{ s.era }}</td>
+                        <td class="py-3 pr-6 font-mono
+              {% if s.mae < 1.0 %}text-green-400
+              {% elif s.mae < 2.0 %}text-yellow-400
+              {% else %}text-red-400{% endif %}">
+                            {{ s.mae }}s
+                        </td>
+                        <td class="py-3 pr-6 text-gray-400">{{ "{:,}".format(s.laps) }}</td>
+                        <td class="py-3">
+                            <div class="w-48 bg-gray-700 rounded-full h-2">
+                                <div class="h-2 rounded-full
+                  {% if s.mae < 1.0 %}bg-green-400
+                  {% elif s.mae < 2.0 %}bg-yellow-400
+                  {% else %}bg-red-400{% endif %}" style="width: {{ [100 - (s.mae * 20), 5]|max }}%">
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% if session_stats %}
+    <div class="bg-gray-800 rounded-xl p-6 mb-8">
+        <h2 class="text-xl font-bold text-white mb-4">🔍 MAE by Session Type</h2>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="text-gray-400 border-b border-gray-700">
+                    <th class="text-left py-2 pr-6">Session</th>
+                    <th class="text-left py-2 pr-6">MAE (s)</th>
+                    <th class="text-left py-2">Laps</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in session_stats %}
+                <tr class="border-b border-gray-700">
+                    <td class="py-3 pr-6 font-bold text-white">{{ s.session }}</td>
+                    <td class="py-3 pr-6 font-mono
+          {% if s.mae < 1.0 %}text-green-400
+          {% elif s.mae < 2.0 %}text-yellow-400
+          {% else %}text-red-400{% endif %}">
+                        {{ s.mae }}s
+                    </td>
+                    <td class="py-3 text-gray-400">{{ "{:,}".format(s.laps) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+    <!-- Circuit MAE Table -->
+    <div class="bg-gray-800 rounded-xl p-6 mb-8">
+        <h2 class="text-xl font-bold text-white mb-4">🏟️ MAE by Circuit (Best → Worst)</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-gray-400 border-b border-gray-700">
+                        <th class="text-left py-2 pr-6">Rank</th>
+                        <th class="text-left py-2 pr-6">Circuit</th>
+                        <th class="text-left py-2 pr-6">MAE (s)</th>
+                        <th class="text-left py-2 pr-6">Laps</th>
+                        <th class="text-left py-2">Seasons</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in circuit_stats %}
+                    <tr class="border-b border-gray-700 hover:bg-gray-750">
+                        <td class="py-3 pr-6 text-gray-500">#{{ loop.index }}</td>
+                        <td class="py-3 pr-6 font-bold text-white">{{ c.circuit }}</td>
+                        <td class="py-3 pr-6 font-mono
+              {% if c.mae < 1.0 %}text-green-400
+              {% elif c.mae < 2.0 %}text-yellow-400
+              {% else %}text-red-400{% endif %}">
+                            {{ c.mae }}s
+                        </td>
+                        <td class="py-3 pr-6 text-gray-400">{{ "{:,}".format(c.laps) }}</td>
+                        <td class="py-3 text-gray-400 text-xs">{{ c.seasons | join(', ') }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Features Used -->
+    <div class="bg-gray-800 rounded-xl p-6">
+        <h2 class="text-xl font-bold text-white mb-4">🔧 Model Features</h2>
+        <div class="flex flex-wrap gap-3">
+            {% for f in metadata.get('features', []) %}
+            <span class="bg-indigo-900 text-indigo-300 text-sm px-3 py-1 rounded-full font-mono">{{ f }}</span>
+            {% endfor %}
+        </div>
+        <p class="text-gray-500 text-xs mt-4">
+            Training note: {{ metadata.get('note', '') }}
+        </p>
+    </div>
+
+</div>
+{% endblock %}

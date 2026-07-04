@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-7xl">
+
+  <div class="mb-4">
+    <h1 class="text-3xl font-bold text-cyan-400">🔀 Counterfactual Analysis</h1>
+    <p class="text-gray-400 mt-1">What if the race had gone differently? Change variables and see the predicted outcome — {{ event_name }} {{ selected_year }}</p>
+  </div>
+
+  <div class="bg-yellow-900 border border-yellow-600 rounded-xl p-3 mb-6 text-yellow-300 text-xs">
+    ⚠️ Requires post-race model — load this race on the <a href="/predictions?year={{ selected_year }}&round={{ selected_round }}&session_type={{ selected_session }}" class="underline">Predictions page</a> first, then return here.
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+
+    <!-- Setup -->
+    <div class="bg-gray-800 rounded-xl p-5">
+      <h3 class="text-white font-bold mb-4">🏎️ Select Driver & Changes</h3>
+      <div class="space-y-4">
+        <div>
+          <label class="text-gray-400 text-xs">Driver</label>
+          <select id="cf_driver" onchange="updateActuals()"
+            class="w-full bg-gray-700 text-white rounded px-3 py-2 mt-1 text-sm">
+            {% for d in drivers %}<option>{{ d }}</option>{% endfor %}
+          </select>
+        </div>
+
+        <div class="border-t border-gray-700 pt-3">
+          <div class="text-gray-400 text-xs font-bold mb-3">🔧 Counterfactual Variables</div>
+
+          <div class="space-y-3">
+            <div class="flex items-center gap-3">
+              <input type="checkbox" id="use_grid" class="rounded" onchange="toggleInput('cf_grid_val')">
+              <label class="text-gray-300 text-sm flex-1">Grid Position</label>
+              <div class="flex items-center gap-2">
+                <span id="actual_grid" class="text-gray-500 text-xs">actual: —</span>
+                <input type="number" id="cf_grid_val" min="1" max="20" value="1" disabled
+                  class="w-16 bg-gray-600 text-white rounded px-2 py-1 text-sm disabled:opacity-40">
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <input type="checkbox" id="use_compound" class="rounded" onchange="toggleInput('cf_compound_val')">
+              <label class="text-gray-300 text-sm flex-1">Tyre Compound</label>
+              <div class="flex items-center gap-2">
+                <span id="actual_compound" class="text-gray-500 text-xs">actual: —</span>
+                <select id="cf_compound_val" disabled
+                  class="bg-gray-600 text-white rounded px-2 py-1 text-sm disabled:opacity-40">
+                  {% for c in compounds %}<option>{{ c }}</option>{% endfor %}
+                </select>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <input type="checkbox" id="use_pit" class="rounded" onchange="toggleInput('cf_pit_val')">
+              <label class="text-gray-300 text-sm flex-1">First Pit Lap</label>
+              <div class="flex items-center gap-2">
+                <span id="actual_pit" class="text-gray-500 text-xs">actual: —</span>
+                <input type="number" id="cf_pit_val" min="1" max="{{ race_laps }}" value="20" disabled
+                  class="w-16 bg-gray-600 text-white rounded px-2 py-1 text-sm disabled:opacity-40">
+              </div>
+            </div>
+
+            <div class="flex items-center gap-3">
+              <input type="checkbox" id="use_stops" class="rounded" onchange="toggleInput('cf_stops_val')">
+              <label class="text-gray-300 text-sm flex-1">Number of Pit Stops</label>
+              <div class="flex items-center gap-2">
+                <span id="actual_stops" class="text-gray-500 text-xs">actual: —</span>
+                <input type="number" id="cf_stops_val" min="0" max="4" value="1" disabled
+                  class="w-16 bg-gray-600 text-white rounded px-2 py-1 text-sm disabled:opacity-40">
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button onclick="runCounterfactual()"
+          class="w-full py-3 rounded-xl font-bold text-white mt-2"
+          style="background:#FF1E1E;">
+          🔀 Run Counterfactual
+        </button>
+      </div>
+    </div>
+
+    <!-- Result -->
+    <div class="bg-gray-800 rounded-xl p-5">
+      <h3 class="text-white font-bold mb-4">📊 Result</h3>
+
+      <div id="cf_waiting" class="text-gray-500 text-sm text-center py-10">
+        Select a driver and changes, then click Run Counterfactual
+      </div>
+
+      <div id="cf_result" style="display:none;">
+        <!-- Position comparison -->
+        <div class="grid grid-cols-3 gap-3 mb-4">
+          <div class="bg-gray-700 rounded-xl p-4 text-center">
+            <div class="text-gray-400 text-xs mb-1">Actual Finish</div>
+            <div id="res_actual" class="text-2xl font-bold text-gray-300">—</div>
+          </div>
+          <div class="bg-gray-700 rounded-xl p-4 text-center">
+            <div class="text-gray-400 text-xs mb-1">Predicted (Real)</div>
+            <div id="res_base" class="text-2xl font-bold text-cyan-400">—</div>
+          </div>
+          <div class="bg-gray-700 rounded-xl p-4 text-center">
+            <div class="text-gray-400 text-xs mb-1">Counterfactual</div>
+            <div id="res_cf" class="text-2xl font-bold text-yellow-400">—</div>
+          </div>
+        </div>
+
+        <!-- Delta -->
+        <div id="res_delta" class="text-center text-xl font-bold mb-4 p-3 rounded-xl"></div>
+
+        <!-- Changes applied -->
+        <div id="res_changes" class="space-y-2 mb-4"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Full grid impact -->
+  <div id="cf_grid_section" style="display:none;" class="bg-gray-800 rounded-xl p-6">
+    <h2 class="text-xl font-bold text-white mb-4">🏁 Full Grid Impact</h2>
+    <p class="text-gray-400 text-xs mb-4">How the counterfactual scenario affects all drivers' predicted positions.</p>
+    <div id="cf_grid_chart" style="width:100%;height:400px;"></div>
+  </div>
+
+</div>
+
+<script>
+const CF_YEAR    = {{ selected_year }};
+const CF_ROUND   = {{ selected_round }};
+const CF_SESSION = "{{ selected_session }}";
+const GRID_MAP   = {{ grid_map | safe }};
+
+function toggleInput(id) {
+  const el = document.getElementById(id);
+  const cb = document.getElementById('use_' + id.replace('cf_','').replace('_val',''));
+  el.disabled = !cb.checked;
+}
+
+function updateActuals() {
+  const drv = document.getElementById('cf_driver').value;
+  // Show actual grid position
+  if (GRID_MAP[drv]) {
+    document.getElementById('actual_grid').textContent = `actual: P${GRID_MAP[drv]}`;
+    document.getElementById('cf_grid_val').value = GRID_MAP[drv];
+  }
+}
+
+// Init
+updateActuals();
+
+async function runCounterfactual() {
+  const btn = document.querySelector('[onclick="runCounterfactual()"]');
+  btn.textContent = '⏳ Computing...';
+  btn.disabled = true;
+
+  const driver = document.getElementById('cf_driver').value;
+  const body   = {
+    year: CF_YEAR, round: CF_ROUND, session_type: CF_SESSION,
+    driver,
+    cf_grid:     document.getElementById('use_grid').checked     ? parseInt(document.getElementById('cf_grid_val').value)     : null,
+    cf_compound: document.getElementById('use_compound').checked ? document.getElementById('cf_compound_val').value           : null,
+    cf_pit_lap:  document.getElementById('use_pit').checked      ? parseInt(document.getElementById('cf_pit_val').value)      : null,
+    cf_stops:    document.getElementById('use_stops').checked    ? parseInt(document.getElementById('cf_stops_val').value)    : null,
+  };
+
+  const res  = await fetch('/api/counterfactual', {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify(body)
+  });
+  const data = await res.json();
+
+  btn.textContent = '🔀 Run Counterfactual';
+  btn.disabled = false;
+
+  if (data.error) {
+    alert(data.error);
+    return;
+  }
+
+  document.getElementById('cf_waiting').style.display = 'none';
+  document.getElementById('cf_result').style.display  = 'block';
+
+  document.getElementById('res_actual').textContent = `P${data.actual_position}`;
+  document.getElementById('res_base').textContent   = `P${data.base_position}`;
+  document.getElementById('res_cf').textContent     = `P${data.cf_position}`;
+
+  const delta    = data.position_delta;
+  const deltaEl  = document.getElementById('res_delta');
+  if (delta > 0) {
+    deltaEl.textContent = `🟢 +${delta} positions gained in counterfactual scenario`;
+    deltaEl.className   = 'text-center text-lg font-bold mb-4 p-3 rounded-xl bg-green-900 text-green-400';
+  } else if (delta < 0) {
+    deltaEl.textContent = `🔴 ${delta} positions lost in counterfactual scenario`;
+    deltaEl.className   = 'text-center text-lg font-bold mb-4 p-3 rounded-xl bg-red-900 text-red-400';
+  } else {
+    deltaEl.textContent = '⚪ No change in predicted position';
+    deltaEl.className   = 'text-center text-lg font-bold mb-4 p-3 rounded-xl bg-gray-700 text-gray-300';
+  }
+
+  // Changes applied
+  document.getElementById('res_changes').innerHTML = Object.entries(data.changes).map(([key, val]) => `
+    <div class="flex items-center gap-2 text-sm">
+      <span class="text-gray-400">${key}:</span>
+      <span class="text-red-400 line-through">${val.from}</span>
+      <span class="text-gray-400">→</span>
+      <span class="text-green-400 font-bold">${val.to}</span>
+    </div>
+  `).join('');
+
+  // Full grid chart
+  document.getElementById('cf_grid_section').style.display = 'block';
+  const subject = data.grid_results.filter(d => d.is_subject);
+  const others  = data.grid_results.filter(d => !d.is_subject);
+
+  Plotly.react('cf_grid_chart', [
+    {
+      x: others.map(d => d.driver),
+      y: others.map(d => d.delta),
+      type: 'bar',
+      name: 'Other Drivers',
+      marker: { color: others.map(d => d.delta > 0 ? '#22c55e' : d.delta < 0 ? '#ef4444' : '#6b7280') },
+      hovertemplate: '%{x}<br>Position change: %{y}<extra></extra>'
+    },
+    {
+      x: subject.map(d => d.driver),
+      y: subject.map(d => d.delta),
+      type: 'bar',
+      name: driver,
+      marker: { color: '#ffd700', line: { color: '#fff', width: 2 } },
+      hovertemplate: '%{x}<br>Position change: %{y}<extra></extra>'
+    }
+  ], {
+    template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+    height: 400, margin: { l: 60, r: 20, t: 20, b: 60 },
+    xaxis: { title: 'Driver', tickangle: -45 },
+    yaxis: { title: 'Position Change (positive = better)', zeroline: true },
+    barmode: 'overlay',
+    legend: { title: { text: 'Driver' } }
+  });
+
+  document.getElementById('cf_grid_section').scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+{% endblock %}
