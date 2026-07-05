@@ -19,3 +19,4 @@ aiohttp==3.14.1
 httpx==0.28.1
 huggingface_hub==0.32.3
 pytorch-tabnet==4.1.0
+python-dotenv==1.0.1
