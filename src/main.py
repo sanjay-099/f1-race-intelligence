@@ -181,6 +181,56 @@ ROOT = BASE_DIR.parent
 CACHE_DIR = ROOT / "data" / "cache"
 MODELS_DIR = ROOT / "models"
 
+# ── HuggingFace Model/Data Download (production only) ─────
+def _download_hf_assets():
+    """Download models and data from HuggingFace Hub if not present locally."""
+    import os
+    if os.getenv("SPACE_ID") is None:
+        return  # Only run on HuggingFace Spaces, not locally
+
+    try:
+        from huggingface_hub import hf_hub_download
+        import shutil
+
+        HF_REPO = "sanjay1103/f1-race-intelligence-data"
+        print("📦 Downloading assets from HuggingFace Hub...")
+
+        # Files to download
+        files = [
+            ("data/all_races_2018_2026.parquet",           "data/all_races_2018_2026.parquet"),
+            ("data/driver_embeddings_alltime.json",         "data/driver_embeddings_alltime.json"),
+            ("models/tire_degradation_model.pkl",           "models/tire_degradation_model.pkl"),
+            ("models/incident_isolation_forest.pkl",        "models/incident_isolation_forest.pkl"),
+            ("models/incident_isolation_forest_practice.pkl","models/incident_isolation_forest_practice.pkl"),
+            ("models/incident_scaler.pkl",                  "models/incident_scaler.pkl"),
+            ("models/incident_scaler_practice.pkl",         "models/incident_scaler_practice.pkl"),
+            ("models/circuit_encoder.pkl",                  "models/circuit_encoder.pkl"),
+            ("models/compound_encoder.pkl",                 "models/compound_encoder.pkl"),
+            ("models/driver_encoder.pkl",                   "models/driver_encoder.pkl"),
+            ("models/driver_embedding_pca.pkl",             "models/driver_embedding_pca.pkl"),
+            ("models/driver_embedding_scaler.pkl",          "models/driver_embedding_scaler.pkl"),
+            ("models/model_metadata.json",                  "models/model_metadata.json"),
+        ]
+
+        for hf_path, local_path in files:
+            Path(local_path).parent.mkdir(parents=True, exist_ok=True)
+            if not Path(local_path).exists():
+                print(f"  ⬇️  {hf_path}")
+                downloaded = hf_hub_download(
+                    repo_id=HF_REPO,
+                    filename=hf_path,
+                    repo_type="dataset",
+                )
+                shutil.copy(downloaded, local_path)
+
+        print("✅ All assets downloaded successfully")
+
+    except Exception as e:
+        print(f"⚠️ Asset download failed: {e}")
+        print("   App will run with limited functionality")
+
+_download_hf_assets()
+
 # ── Incident Detection Models (pre-trained) ───────────────
 iso_forest = joblib.load(MODELS_DIR / "incident_isolation_forest.pkl")
 scaler     = joblib.load(MODELS_DIR / "incident_scaler.pkl")
@@ -484,56 +534,6 @@ def get_race_model(year: int, round_number: int, session_type: str = 'R'):
     model_cache[cache_key] = result
     print(f"✅ Model ready: {drivers} | {compounds}")
     return result
-
-# ── HuggingFace Model/Data Download (production only) ─────
-def _download_hf_assets():
-    """Download models and data from HuggingFace Hub if not present locally."""
-    import os
-    if os.getenv("SPACE_ID") is None:
-        return  # Only run on HuggingFace Spaces, not locally
-
-    try:
-        from huggingface_hub import hf_hub_download, snapshot_download
-        import shutil
-
-        HF_REPO = "sanjay1103/f1-race-intelligence-data"
-        print("📦 Downloading assets from HuggingFace Hub...")
-
-        # Files to download
-        files = [
-            ("data/all_races_2018_2026.parquet",           "data/all_races_2018_2026.parquet"),
-            ("data/driver_embeddings_alltime.json",         "data/driver_embeddings_alltime.json"),
-            ("models/tire_degradation_model.pkl",           "models/tire_degradation_model.pkl"),
-            ("models/incident_isolation_forest.pkl",        "models/incident_isolation_forest.pkl"),
-            ("models/incident_isolation_forest_practice.pkl","models/incident_isolation_forest_practice.pkl"),
-            ("models/incident_scaler.pkl",                  "models/incident_scaler.pkl"),
-            ("models/incident_scaler_practice.pkl",         "models/incident_scaler_practice.pkl"),
-            ("models/circuit_encoder.pkl",                  "models/circuit_encoder.pkl"),
-            ("models/compound_encoder.pkl",                 "models/compound_encoder.pkl"),
-            ("models/driver_encoder.pkl",                   "models/driver_encoder.pkl"),
-            ("models/driver_embedding_pca.pkl",             "models/driver_embedding_pca.pkl"),
-            ("models/driver_embedding_scaler.pkl",          "models/driver_embedding_scaler.pkl"),
-            ("models/model_metadata.json",                  "models/model_metadata.json"),
-        ]
-
-        for hf_path, local_path in files:
-            Path(local_path).parent.mkdir(parents=True, exist_ok=True)
-            if not Path(local_path).exists():
-                print(f"  ⬇️  {hf_path}")
-                downloaded = hf_hub_download(
-                    repo_id=HF_REPO,
-                    filename=hf_path,
-                    repo_type="dataset",
-                )
-                shutil.copy(downloaded, local_path)
-
-        print("✅ All assets downloaded successfully")
-
-    except Exception as e:
-        print(f"⚠️ Asset download failed: {e}")
-        print("   App will run with limited functionality")
-
-_download_hf_assets()
 
 # ── Load Default Session at Startup ──────────────────────
 print("🏎️ Loading latest race at startup...")
