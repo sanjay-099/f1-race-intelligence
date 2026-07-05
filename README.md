@@ -1,3 +1,11 @@
+---
+title: F1 Race Intelligence
+emoji: 🏎️
+colorFrom: red
+colorTo: blue
+sdk: docker
+pinned: false
+---
 # 🏎️ F1 Race Intelligence System
 
 > Production-grade Formula 1 analytics platform — FastF1 telemetry + XGBoost + Multi-Agent LLM
