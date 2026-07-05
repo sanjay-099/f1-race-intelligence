@@ -6,3 +6,6 @@ __pycache__/
 data/cache/
 *.ipynb_checkpoints
 .antigravity/
+data/all_races_2018_2026.parquet
+data/driver_embeddings_alltime.json
+models/*.pkl
