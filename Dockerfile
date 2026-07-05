@@ -11,8 +11,6 @@ RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 COPY src/ ./src/
-COPY models/ ./models/
-COPY data/ ./data/
 
 RUN mkdir -p data/cache
 
