@@ -74,41 +74,41 @@
 </div>
 
 <script>
-const STATUS_CONFIG = {
-  'healthy':  { icon: '✅', color: '#22c55e', bg: '#14532d', border: '#166534' },
-  'warning':  { icon: '⚠️', color: '#f59e0b', bg: '#78350f', border: '#92400e' },
-  'degraded': { icon: '🟡', color: '#fbbf24', bg: '#3b2a00', border: '#92400e' },
-  'error':    { icon: '❌', color: '#ef4444', bg: '#7f1d1d', border: '#991b1b' },
-};
+  const STATUS_CONFIG = {
+    'healthy': { icon: '✅', color: '#22c55e', bg: '#14532d', border: '#166534' },
+    'warning': { icon: '⚠️', color: '#f59e0b', bg: '#78350f', border: '#92400e' },
+    'degraded': { icon: '🟡', color: '#fbbf24', bg: '#3b2a00', border: '#92400e' },
+    'error': { icon: '❌', color: '#ef4444', bg: '#7f1d1d', border: '#991b1b' },
+  };
 
-const OVERALL_CONFIG = {
-  'healthy': { icon: '✅', text: 'All Systems Operational', bg: '#14532d', border: '#166534' },
-  'warning': { icon: '⚠️', text: 'Minor Issues Detected', bg: '#78350f', border: '#92400e' },
-  'error':   { icon: '❌', text: 'Critical Issues Detected', bg: '#7f1d1d', border: '#991b1b' },
-};
+  const OVERALL_CONFIG = {
+    'healthy': { icon: '✅', text: 'All Systems Operational', bg: '#14532d', border: '#166534' },
+    'warning': { icon: '⚠️', text: 'Minor Issues Detected', bg: '#78350f', border: '#92400e' },
+    'error': { icon: '❌', text: 'Critical Issues Detected', bg: '#7f1d1d', border: '#991b1b' },
+  };
 
-async function loadStatus() {
-  const res  = await fetch('/api/pipeline-status');
-  const data = await res.json();
+  async function loadStatus() {
+    const res = await fetch('/api/pipeline-status');
+    const data = await res.json();
 
-  if (data.error) {
-    document.getElementById('overall_text').textContent = `Error: ${data.error}`;
-    return;
-  }
+    if (data.error) {
+      document.getElementById('overall_text').textContent = `Error: ${data.error}`;
+      return;
+    }
 
-  // Overall status
-  const ovCfg = OVERALL_CONFIG[data.overall] || OVERALL_CONFIG['warning'];
-  const ovEl  = document.getElementById('overall_status');
-  ovEl.style.background  = ovCfg.bg;
-  ovEl.style.borderColor = ovCfg.border;
-  document.getElementById('overall_icon').textContent = ovCfg.icon;
-  document.getElementById('overall_text').textContent = ovCfg.text;
-  document.getElementById('checked_at').textContent   = `Last checked: ${data.checked_at}`;
+    // Overall status
+    const ovCfg = OVERALL_CONFIG[data.overall] || OVERALL_CONFIG['warning'];
+    const ovEl = document.getElementById('overall_status');
+    ovEl.style.background = ovCfg.bg;
+    ovEl.style.borderColor = ovCfg.border;
+    document.getElementById('overall_icon').textContent = ovCfg.icon;
+    document.getElementById('overall_text').textContent = ovCfg.text;
+    document.getElementById('checked_at').textContent = `Last checked: ${data.checked_at}`;
 
-  // Health checks
-  document.getElementById('health_checks').innerHTML = data.health_checks.map(h => {
-    const cfg = STATUS_CONFIG[h.status] || STATUS_CONFIG['warning'];
-    return `
+    // Health checks
+    document.getElementById('health_checks').innerHTML = data.health_checks.map(h => {
+      const cfg = STATUS_CONFIG[h.status] || STATUS_CONFIG['warning'];
+      return `
       <div class="flex items-center gap-3 p-3 rounded-lg" style="background:${cfg.bg}33; border:1px solid ${cfg.border}66;">
         <div class="text-xl">${cfg.icon}</div>
         <div class="flex-1">
@@ -120,75 +120,75 @@ async function loadStatus() {
         </div>
       </div>
     `;
-  }).join('');
+    }).join('');
 
-  // Dataset info
-  if (data.dataset) {
-    document.getElementById('dataset_info').innerHTML = `
+    // Dataset info
+    if (data.dataset) {
+      document.getElementById('dataset_info').innerHTML = `
       <div class="flex justify-between text-sm"><span class="text-gray-400">File</span><span class="text-white font-mono">${data.dataset.name}</span></div>
-      <div class="flex justify-between text-sm"><span class="text-gray-400">Size</span><span class="text-white">${(data.dataset.size_kb/1024).toFixed(1)} MB</span></div>
+      <div class="flex justify-between text-sm"><span class="text-gray-400">Size</span><span class="text-white">${(data.dataset.size_kb / 1024).toFixed(1)} MB</span></div>
       <div class="flex justify-between text-sm"><span class="text-gray-400">Rows</span><span class="text-cyan-400 font-bold">${data.dataset_rows?.toLocaleString() || '—'}</span></div>
       <div class="flex justify-between text-sm"><span class="text-gray-400">Seasons</span><span class="text-white">${data.dataset_seasons.join(', ')}</span></div>
       <div class="flex justify-between text-sm"><span class="text-gray-400">Last Updated</span><span class="text-white">${data.dataset.modified}</span></div>
       <div class="flex justify-between text-sm"><span class="text-gray-400">Age</span><span class="text-gray-300">${data.dataset.age_days} days</span></div>
     `;
-  } else {
-    document.getElementById('dataset_info').innerHTML = `<div class="text-red-400 text-sm">Dataset file not found</div>`;
-  }
+    } else {
+      document.getElementById('dataset_info').innerHTML = `<div class="text-red-400 text-sm">Dataset file not found</div>`;
+    }
 
-  // Cache info
-  document.getElementById('cache_info').innerHTML = `
+    // Cache info
+    document.getElementById('cache_info').innerHTML = `
     <div class="flex justify-between text-sm"><span class="text-gray-400">Total Size</span><span class="text-cyan-400 font-bold">${data.cache_size_mb} MB</span></div>
     <div class="flex justify-between text-sm"><span class="text-gray-400">Seasons Cached</span><span class="text-white">${data.cache_seasons.length}</span></div>
     <div class="flex justify-between text-sm"><span class="text-gray-400">Years</span><span class="text-gray-300 text-xs">${data.cache_seasons.join(', ')}</span></div>
   `;
 
-  // Models table
-  document.getElementById('models_tbody').innerHTML = data.models.map(m => `
+    // Models table
+    document.getElementById('models_tbody').innerHTML = data.models.map(m => `
     <tr class="border-b border-gray-700">
       <td class="py-2 pr-4 font-mono text-xs text-gray-300">${m.name}</td>
-      <td class="py-2 pr-4 text-gray-400">${m.size_kb >= 1024 ? (m.size_kb/1024).toFixed(1)+' MB' : m.size_kb+' KB'}</td>
+      <td class="py-2 pr-4 text-gray-400">${m.size_kb >= 1024 ? (m.size_kb / 1024).toFixed(1) + ' MB' : m.size_kb + ' KB'}</td>
       <td class="py-2 pr-4 text-gray-400">${m.modified}</td>
       <td class="py-2 ${m.age_days > 30 ? 'text-yellow-400' : 'text-gray-400'}">${m.age_days} days</td>
     </tr>
   `).join('');
 
-  // Model metadata
-  if (data.model_metadata && Object.keys(data.model_metadata).length > 0) {
-    document.getElementById('metadata_section').style.display = 'block';
-    document.getElementById('metadata_content').innerHTML = Object.entries(data.model_metadata).map(([k, v]) => {
-      let display;
-      if (typeof v === 'number') {
-        display = v.toLocaleString();
-      } else if (Array.isArray(v)) {
-        display = v.length > 4 ? `${v.slice(0,4).join(', ')}... (+${v.length-4})` : v.join(', ');
-      } else if (typeof v === 'object') {
-        display = JSON.stringify(v).slice(0, 40) + '...';
-      } else {
-        display = String(v).length > 50 ? String(v).slice(0,50) + '...' : v;
-      }
-      return `
+    // Model metadata
+    if (data.model_metadata && Object.keys(data.model_metadata).length > 0) {
+      document.getElementById('metadata_section').style.display = 'block';
+      document.getElementById('metadata_content').innerHTML = Object.entries(data.model_metadata).map(([k, v]) => {
+        let display;
+        if (typeof v === 'number') {
+          display = v.toLocaleString();
+        } else if (Array.isArray(v)) {
+          display = v.length > 4 ? `${v.slice(0, 4).join(', ')}... (+${v.length - 4})` : v.join(', ');
+        } else if (typeof v === 'object') {
+          display = JSON.stringify(v).slice(0, 40) + '...';
+        } else {
+          display = String(v).length > 50 ? String(v).slice(0, 50) + '...' : v;
+        }
+        return `
         <div class="bg-gray-700 rounded-xl p-4 text-center overflow-hidden">
           <div class="text-gray-400 text-xs mb-1">${k}</div>
           <div class="text-cyan-400 font-bold text-xs break-words" title="${typeof v === 'object' ? JSON.stringify(v) : v}">${display}</div>
         </div>
       `;
-    }).join('');
-  }
+      }).join('');
+    }
 
-  // Embeddings
-  if (data.driver_embeddings) {
-    document.getElementById('embeddings_info').innerHTML = `
+    // Embeddings
+    if (data.driver_embeddings) {
+      document.getElementById('embeddings_info').innerHTML = `
       <div class="flex justify-between text-sm"><span class="text-gray-400">Drivers Indexed</span><span class="text-cyan-400 font-bold">${data.driver_embeddings_count}</span></div>
       <div class="flex justify-between text-sm"><span class="text-gray-400">File Size</span><span class="text-white">${data.driver_embeddings.size_kb} KB</span></div>
       <div class="flex justify-between text-sm"><span class="text-gray-400">Last Computed</span><span class="text-white">${data.driver_embeddings.modified}</span></div>
       <div class="flex justify-between text-sm"><span class="text-gray-400">Age</span><span class="text-gray-300">${data.driver_embeddings.age_days} days</span></div>
     `;
-  } else {
-    document.getElementById('embeddings_info').innerHTML = `<div class="text-yellow-400 text-sm">Not computed yet — run notebook 05_driver_embeddings.ipynb</div>`;
+    } else {
+      document.getElementById('embeddings_info').innerHTML = `<div class="text-yellow-400 text-sm">Not computed yet — run notebook 05_driver_embeddings.ipynb</div>`;
+    }
   }
-}
 
-loadStatus();
+  loadStatus();
 </script>
 {% endblock %}

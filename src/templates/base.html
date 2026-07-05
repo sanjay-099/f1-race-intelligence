@@ -7,50 +7,531 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <style>
-        body { background-color: #0e1117; color: #ffffff; font-family: 'Inter', sans-serif; }
-        .nav-link { transition: all 0.2s; padding-bottom: 4px; }
-        .nav-link:hover { color: #00d2ff; border-bottom: 2px solid #00d2ff; }
-        .nav-active { color: #00d2ff !important; border-bottom: 2px solid #00d2ff; }
-        .card { background: #16213e; border: 1px solid #1a1a2e; border-radius: 12px; }
-        .metric-card { background: #1a1a2e; border: 1px solid #00d2ff33; border-radius: 10px; }
-        .btn-primary { background: #FF1E1E; color: white; border-radius: 8px; transition: all 0.2s; cursor: pointer; }
-        .btn-primary:hover { background: #cc0000; transform: translateY(-1px); }
-        select, input[type="number"] { 
-            background: #1a1a2e !important; 
-            color: white !important; 
-            border: 1px solid #00d2ff44 !important; 
+        body {
+            background-color: #0e1117;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .nav-link {
+            transition: all 0.2s;
+            padding-bottom: 4px;
+        }
+
+        .nav-link:hover {
+            color: #00d2ff;
+            border-bottom: 2px solid #00d2ff;
+        }
+
+        .nav-active {
+            color: #00d2ff !important;
+            border-bottom: 2px solid #00d2ff;
+        }
+
+        .card {
+            background: #16213e;
+            border: 1px solid #1a1a2e;
+            border-radius: 12px;
+        }
+
+        .metric-card {
+            background: #1a1a2e;
+            border: 1px solid #00d2ff33;
+            border-radius: 10px;
+        }
+
+        .btn-primary {
+            background: #FF1E1E;
+            color: white;
+            border-radius: 8px;
+            transition: all 0.2s;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background: #cc0000;
+            transform: translateY(-1px);
+        }
+
+        select,
+        input[type="number"] {
+            background: #1a1a2e !important;
+            color: white !important;
+            border: 1px solid #00d2ff44 !important;
             border-radius: 8px;
             padding: 8px 12px;
             width: 100%;
         }
-        table { border-collapse: collapse; width: 100%; }
-        th { background: #1a1a2e; color: #00d2ff; padding: 12px; text-align: left; font-size: 14px; }
-        td { padding: 10px 12px; border-bottom: 1px solid #1a1a2e; font-size: 14px; }
-        tr:hover td { background: #16213e; }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+        }
+
+        th {
+            background: #1a1a2e;
+            color: #00d2ff;
+            padding: 12px;
+            text-align: left;
+            font-size: 14px;
+        }
+
+        td {
+            padding: 10px 12px;
+            border-bottom: 1px solid #1a1a2e;
+            font-size: 14px;
+        }
+
+        tr:hover td {
+            background: #16213e;
+        }
     </style>
 </head>
 <body>
-    <nav style="background:#0e1117; border-bottom: 1px solid #1a1a2e;" class="px-6 py-4 flex items-center justify-between sticky top-0 z-50">
-        <div class="flex items-center gap-3">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/3/33/F1.svg" height="28" style="height:28px;" alt="F1">
-            <span class="text-white font-bold text-lg">Race Intelligence</span>
+    {% set selected_year = selected_year if selected_year is not none else 2026 %}
+    {% set selected_round = selected_round if selected_round is not none else 1 %}
+    {% set selected_session = selected_session if selected_session is not none else 'R' %}
+    <!-- ── Top Navbar ────────────────────────────────────── -->
+    <nav style="background:#0e1117; border-bottom:1px solid #1a1a2e; position:sticky; top:0; z-index:100;"
+        class="px-4 py-2 flex items-center gap-4 flex-wrap">
+        <!-- Logo -->
+        <div class="flex items-center gap-2 mr-4">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/3/33/F1.svg" height="24" style="height:24px;"
+                alt="F1">
+            <div>
+                <div class="text-white font-bold text-sm leading-tight">Race Intelligence</div>
+                <div class="text-gray-500 text-xs leading-tight">by Sanjay Chowdary</div>
+            </div>
         </div>
-        <div class="flex gap-8">
-            <a href="/" class="nav-link text-gray-300 font-medium {% if active == 'home' %}nav-active{% endif %}">🏠 Overview</a>
-            <a href="/telemetry" class="nav-link text-gray-300 font-medium {% if active == 'telemetry' %}nav-active{% endif %}">📡 Telemetry</a>
-            <a href="/incidents" class="nav-link text-gray-300 font-medium {% if active == 'incidents' %}nav-active{% endif %}">🚨 Incidents</a>
-            <a href="/strategy" class="nav-link text-gray-300 font-medium {% if active == 'strategy' %}nav-active{% endif %}">🎯 Strategy</a>
-            <a href="/docs" class="nav-link text-gray-300 font-medium" target="_blank">⚙️ API</a>
+        <div style="width:1px; height:32px; background:#1a1a2e;"></div>
+        <!-- Race Selector — hidden on no-session pages -->
+        <div id="race_selector_bar" class="flex items-center gap-3 flex-wrap">
+            <span class="text-gray-400 text-xs">🏁 Select Race:</span>
+            <div class="flex items-center gap-1">
+                <label class="text-gray-500 text-xs">Season</label>
+                <select id="sel_year" onchange="updateSchedule()" class="text-white text-xs rounded px-2 py-1 ml-1"
+                    style="background:#0a0a0f; border:1px solid #00d2ff44;">
+                    {% for s in seasons %}
+                    <option value="{{ s }}" {% if s==selected_year %}selected{% endif %}>{{ s }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex items-center gap-1">
+                <label class="text-gray-500 text-xs">Race</label>
+                <select id="sel_round" onchange="onRoundChange()" class="text-white text-xs rounded px-2 py-1 ml-1"
+                    style="background:#0a0a0f; border:1px solid #00d2ff44; min-width:200px;">
+                    {% for race in schedule %}
+                    <option value="{{ race.round }}" {% if race.round==selected_round %}selected{% endif %}>
+                        R{{ race.round }} — {{ race.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <!-- Session selector — hidden on no-session pages -->
+            <div id="session_selector_wrapper" class="flex items-center gap-1">
+                <label class="text-gray-500 text-xs">Session</label>
+                <select id="sel_session" class="text-white text-xs rounded px-2 py-1 ml-1"
+                    style="background:#0a0a0f; border:1px solid #00d2ff44;">
+                    <option value="R" {% if selected_session=='R' %}selected{% endif %}>Race</option>
+                </select>
+            </div>
+            <button type="button" onclick="loadRace()" class="px-4 py-1 rounded font-bold text-white text-xs"
+                style="background:#FF1E1E;">
+                🏎️ Load Race
+            </button>
         </div>
-        <div class="text-gray-500 text-sm">Built by <span class="text-blue-400 font-medium">Sanjay Chowdary</span></div>
+        <!-- Badges -->
+        <span id="race_badge" class="text-xs px-2 py-1 rounded-full"
+            style="background:#00d2ff22; color:#00d2ff; border:1px solid #00d2ff44;">
+            📍 {{ selected_year }} — R{{ selected_round }} ({{ selected_session }})
+        </span>
+        <span id="data_badge" class="text-xs px-2 py-1 rounded-full ml-auto"
+            style="background:#14532d; color:#4ade80; border:1px solid #166534;">
+            ✅ FastF1 Live · {{ selected_year }}
+        </span>
     </nav>
-    <main class="max-w-7xl mx-auto px-6 py-8">
-        {% block content %}{% endblock %}
-    </main>
-    <footer style="border-top: 1px solid #1a1a2e;" class="mt-12 py-6 text-center text-gray-500 text-sm">
-        F1 Race Intelligence System | Powered by FastF1 + XGBoost + FastAPI |
-        <a href="https://github.com/sanjay-099/f1-race-intelligence" class="text-blue-400 ml-1">GitHub</a>
-    </footer>
-    {% block scripts %}{% endblock %}
+    <!-- ── Sidebar + Content Layout ──────────────────────── -->
+    <div class="flex" style="height:calc(100vh - 48px); background:#0a0a0f;">
+        <!-- Sidebar -->
+        <aside id="sidebar" style="background:#0e1117; border-right:1px solid #1a1a2e; width:200px; min-width:200px;"
+            class="flex flex-col h-full sticky top-0 z-50 overflow-y-auto">
+            <!-- Nav Links only — no race selector here -->
+            <nav class="flex-1 px-2 py-3">
+                <div class="text-gray-500 text-xs font-bold uppercase px-2 mb-2">Analysis</div>
+                <div class="space-y-0.5">
+                    <a id="nav_home"
+                        href="/?year={{ selected_year }}&round={{ selected_round }}&session_type={{ selected_session }}"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+          {% if active == 'home' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}" {%
+                        if active=='home' %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;"
+                        {% endif %}>
+                        🏠 <span>Overview</span>
+                    </a>
+                    <a id="nav_telemetry"
+                        href="/telemetry?year={{ selected_year }}&round={{ selected_round }}&session_type={{ selected_session }}"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+          {% if active == 'telemetry' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}"
+                        {% if active=='telemetry'
+                        %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;" {% endif %}>
+                        📡 <span>Telemetry</span>
+                    </a>
+                    <a id="nav_incidents"
+                        href="/incidents?year={{ selected_year }}&round={{ selected_round }}&session_type={{ selected_session }}"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+          {% if active == 'incidents' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}"
+                        {% if active=='incidents'
+                        %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;" {% endif %}>
+                        🚨 <span>Incidents</span>
+                    </a>
+                    <a id="nav_strategy"
+                        href="/strategy?year={{ selected_year }}&round={{ selected_round }}&session_type={{ selected_session }}"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+          {% if active == 'strategy' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}"
+                        {% if active=='strategy'
+                        %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;" {% endif %}>
+                        🎯 <span>Strategy</span>
+                    </a>
+                    <a id="nav_simulate"
+                        href="/simulate?year={{ selected_year }}&round={{ selected_round }}&session_type=R" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+          {% if active == 'simulate' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}"
+                        {% if active=='simulate'
+                        %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;" {% endif %}>
+                        🎲 <span>Simulate</span>
+                    </a>
+                </div>
+                <div class="text-gray-500 text-xs font-bold uppercase px-2 mt-4 mb-2">Intelligence</div>
+                <div class="space-y-0.5">
+                    <a id="nav_predictions"
+                        href="/predictions?year={{ selected_year }}&round={{ selected_round }}&session_type={{ selected_session }}"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+          {% if active == 'predictions' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}"
+                        {% if active=='predictions'
+                        %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;" {% endif %}>
+                        📊 <span>Predictions</span>
+                    </a>
+                    <a id="nav_analyst"
+                        href="/analyst?year={{ selected_year }}&round={{ selected_round }}&session_type={{ selected_session }}"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+          {% if active == 'analyst' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}"
+                        {% if active=='analyst'
+                        %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;" {% endif %}>
+                        🤖 <span>Race Analyst</span>
+                    </a>
+
+                    <a id="nav_counterfactual"
+                        href="/counterfactual?year={{ selected_year }}&round={{ selected_round }}&session_type={{ selected_session }}"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+          {% if active == 'counterfactual' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}"
+                        {% if active=='counterfactual'
+                        %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;" {% endif %}>
+                        🔀 <span>Counterfactual</span>
+                    </a>
+                </div>
+                <div class="text-gray-500 text-xs font-bold uppercase px-2 mt-4 mb-2">Deep Dive</div>
+                <div class="space-y-0.5">
+                    <a id="nav_compare" href="/compare?year={{ selected_year }}&round={{ selected_round }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+          {% if active == 'compare' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}"
+                        {% if active=='compare'
+                        %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;" {% endif %}>
+                        📊 <span>Session Compare</span>
+                    </a>
+                    <a id="nav_tyres"
+                        href="/tyres?year={{ selected_year }}&round={{ selected_round }}&session_type={{ selected_session }}"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+          {% if active == 'tyres' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}" {%
+                        if active=='tyres' %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;"
+                        {% endif %}>
+                        🛞 <span>Tyre Lab</span>
+                    </a>
+                    <a id="nav_drivers" href="/drivers?year={{ selected_year }}" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+          {% if active == 'drivers' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}"
+                        {% if active=='drivers'
+                        %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;" {% endif %}>
+                        🧬 <span>Driver Styles</span>
+                    </a>
+                    <a id="nav_circuit"
+                        href="/circuit?year={{ selected_year }}&round={{ selected_round }}&session_type={{ selected_session }}"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+          {% if active == 'circuit' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}"
+                        {% if active=='circuit'
+                        %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;" {% endif %}>
+                        🏟️ <span>Circuit Intel</span>
+                    </a>
+                    <a id="nav_constructor"
+                        href="/constructor?year={{ selected_year }}&round={{ selected_round }}&session_type={{ selected_session }}"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+          {% if active == 'constructor' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}"
+                        {% if active=='constructor'
+                        %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;" {% endif %}>
+                        🏭 <span>Constructor Intel</span>
+                    </a>
+                </div>
+                <div class="text-gray-500 text-xs font-bold uppercase px-2 mt-4 mb-2">System</div>
+                <div class="space-y-0.5">
+                    <a id="nav_evaluate" href="/evaluate" class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+          {% if active == 'evaluate' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}"
+                        {% if active=='evaluate'
+                        %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;" {% endif %}>
+                        📈 <span>Model Evaluation</span>
+                    </a>
+                    <a id="nav_pipeline" href="/pipeline"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition
+                      {% if active == 'pipeline' %}text-white{% else %}text-gray-400 hover:text-white hover:bg-gray-800{% endif %}" {% if
+                        active=='pipeline' %}style="background:#00d2ff22; color:#00d2ff; border-left:3px solid #00d2ff;"
+                        {% endif %}>
+                        🔧 <span>Pipeline Monitor</span>
+                    </a>
+                    <a href="/docs" target="_blank"
+                        class="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium text-gray-400 hover:text-white hover:bg-gray-800 transition">
+                        ⚙️ <span>API Docs</span>
+                    </a>
+                </div>
+            </nav>
+        </aside>
+        <!-- Main content area -->
+        <div class="flex-1 overflow-y-auto" style="background:#0a0a0f;">
+            <!-- Main Content -->
+            <main class="max-w-7xl mx-auto px-6 py-8">
+                {% block content %}{% endblock %}
+            </main>
+            <!-- Footer -->
+            <footer style="border-top: 1px solid #1a1a2e;" class="mt-12 py-6 text-center text-gray-500 text-sm">
+                F1 Race Intelligence System | Powered by FastF1 + XGBoost + FastAPI |
+                <a href="https://github.com/sanjay-099/f1-race-intelligence" class="text-blue-400 ml-1">GitHub</a>
+            </footer>
+            <script>
+                // ── Page session rules ────────────────────────────────────
+                const PAGE_SESSION_RULES = {
+                    'home': 'all',
+                    'telemetry': 'all',
+                    'incidents': 'all',
+                    'strategy': 'race_sprint',
+                    'simulate': 'race_only',
+                    'predictions': 'no_selector',
+                    'analyst': 'all',
+                    'tyres': 'all',
+                    'counterfactual': 'race_sprint',
+                    'compare': 'none',       // needs race but no session
+                    'circuit': 'none',       // needs race but no session
+                    'constructor': 'no_selector', // no race selector at all
+                    'drivers': 'no_selector', // no race selector at all
+                    'evaluate': 'no_selector', // no race selector at all
+                    'pipeline': 'no_selector',
+                };
+                const CURRENT_PAGE = "{{ active }}";
+                // Session labels for normal vs sprint weekends
+                const NORMAL_SESSIONS = [
+                    { value: 'R', label: 'Race' },
+                    { value: 'Q', label: 'Qualifying' },
+                    { value: 'FP1', label: 'Practice 1' },
+                    { value: 'FP2', label: 'Practice 2' },
+                    { value: 'FP3', label: 'Practice 3' },
+                ];
+                const SPRINT_SESSIONS = [
+                    { value: 'R', label: 'Race' },
+                    { value: 'Q', label: 'Qualifying' },
+                    { value: 'S', label: 'Sprint' },
+                    { value: 'SQ', label: 'Sprint Qualifying' },
+                    { value: 'FP1', label: 'Practice 1' },
+                ];
+                const RACE_SPRINT_SESSIONS = [
+                    { value: 'R', label: 'Race' },
+                    { value: 'S', label: 'Sprint' },
+                ];
+                const RACE_ONLY_SESSIONS = [
+                    { value: 'R', label: 'Race' },
+                ];
+                function getSessionsForRule(rule, isSprintWeekend) {
+                    if (rule === 'none') return null;
+                    if (rule === 'race_only') return RACE_ONLY_SESSIONS;
+                    if (rule === 'race_sprint') return isSprintWeekend ? RACE_SPRINT_SESSIONS : RACE_ONLY_SESSIONS;
+                    if (rule === 'all') return isSprintWeekend ? SPRINT_SESSIONS : NORMAL_SESSIONS;
+                    return NORMAL_SESSIONS;
+                }
+                function applyPageRules(isSprintWeekend) {
+                    const rule = PAGE_SESSION_RULES[CURRENT_PAGE] || 'all';
+                    const raceSelector = document.getElementById('race_selector_bar');
+                    const sessionWrapper = document.getElementById('session_selector_wrapper');
+                    const sessionSelect = document.getElementById('sel_session');
+                    if (rule === 'no_selector') {
+                        const raceBar = document.getElementById('race_selector_bar');
+                        if (raceBar) raceBar.style.display = 'none';
+                        return;
+                    }
+                    if (rule === 'none') {
+                        if (sessionWrapper) sessionWrapper.style.display = 'none';
+                        return;
+                    }
+                    // Show session dropdown
+                    if (sessionWrapper) sessionWrapper.style.display = 'flex';
+                    // Build session options
+                    const sessions = getSessionsForRule(rule, isSprintWeekend);
+                    if (!sessions || !sessionSelect) return;
+                    const current = sessionSelect.value;
+                    sessionSelect.innerHTML = sessions.map(s =>
+                        `<option value="${s.value}" ${s.value === current ? 'selected' : ''}>${s.label}</option>`
+                    ).join('');
+                    // If current selection not in new list → default to first option
+                    const values = sessions.map(s => s.value);
+                    if (!values.includes(sessionSelect.value)) {
+                        sessionSelect.value = sessions[0].value;
+                    }
+                }
+                // ── Detect sprint weekend ─────────────────────────────────
+                let isSprintWeekend = false;
+                async function detectSprintWeekend(year, round) {
+                    try {
+                        const res = await fetch(`/api/sessions/${year}/${round}`);
+                        const data = await res.json();
+                        const sessions = data.sessions || [];
+                        // Sprint weekend if SQ or S in available sessions
+                        isSprintWeekend = sessions.some(s => {
+                            const code = s.code || s;
+                            return code === 'SQ' || code === 'S' || code === 'SS';
+                        });
+                        applyPageRules(isSprintWeekend);
+                        updateNavLinks();
+                    } catch (e) {
+                        applyPageRules(false);
+                    }
+                }
+                // ── When round changes → detect sprint weekend ────────────
+                function onRoundChange() {
+                    const year = document.getElementById('sel_year')?.value;
+                    const round = document.getElementById('sel_round')?.value;
+                    if (year && round) detectSprintWeekend(year, round);
+                }
+                // ── Update schedule when year changes ────────────────────
+                async function updateSchedule() {
+                    const year = document.getElementById('sel_year').value;
+                    try {
+                        const res = await fetch(`/api/schedule/${year}`);
+                        const data = await res.json();
+                        const sel = document.getElementById('sel_round');
+                        sel.innerHTML = data.schedule.map(r =>
+                            `<option value="${r.round}">R${r.round} — ${r.name}</option>`
+                        ).join('');
+                        // Detect sprint for new first round
+                        onRoundChange();
+                    } catch (e) { }
+                }
+                // ── Update nav links ──────────────────────────────────────
+                function updateNavLinks() {
+                    const year = document.getElementById('sel_year')?.value;
+                    const round = document.getElementById('sel_round')?.value;
+                    const session = document.getElementById('sel_session')?.value;
+                    if (!year || !round) return;
+                    const full = `year=${year}&round=${round}&session_type=${session}`;
+                    const base = `year=${year}&round=${round}`;
+                    const set = (id, href) => { const el = document.getElementById(id); if (el) el.href = href; };
+                    set('nav_home', `/?${full}`);
+                    set('nav_telemetry', `/telemetry?${full}`);
+                    set('nav_incidents', `/incidents?${full}`);
+                    set('nav_strategy', `/strategy?${base}&session_type=${['S', 'SS'].includes(session) ? 'S' : 'R'}`);
+                    set('nav_simulate', `/simulate?${base}&session_type=R`);
+                    set('nav_predictions', `/predictions?${full}`);
+                    set('nav_analyst', `/analyst?${full}`);
+                    set('nav_counterfactual', `/counterfactual?${full}`);
+                    set('nav_compare', `/compare?${base}`);
+                    set('nav_tyres', `/tyres?${base}&session_type=${session}`);
+                    set('nav_drivers', `/drivers?year=${year}`);
+                    set('nav_circuit', `/circuit?${full}`);
+                    set('nav_constructor', `/constructor?${full}`);
+                    // Update badge
+                    const badge = document.getElementById('race_badge');
+                    if (badge) badge.textContent = `📍 ${year} — R${round} (${session})`;
+                }
+                // ── Load race ─────────────────────────────────────────────
+                async function loadRace() {
+                    const year = document.getElementById('sel_year').value;
+                    const round = document.getElementById('sel_round').value;
+                    const session = document.getElementById('sel_session').value;
+                    const path = window.location.pathname;
+                    // Pages with no session → don't append session_type
+                    const rule = PAGE_SESSION_RULES[CURRENT_PAGE] || 'all';
+                    if (rule === 'none') {
+                        window.location.href = `${path}?year=${year}&round=${round}`;
+                    } else {
+                        window.location.href = `${path}?year=${year}&round=${round}&session_type=${session}`;
+                    }
+                }
+                // ── Dynamic session dropdown from API ────────────────────
+                async function updateSessions(desiredSession) {
+                    const year = document.getElementById('sel_year')?.value;
+                    const round = document.getElementById('sel_round')?.value;
+                    if (!year || !round) return;
+                    try {
+                        const res = await fetch(`/api/sessions/${year}/${round}`);
+                        const data = await res.json();
+                        const sel = document.getElementById('sel_session');
+                        if (!sel) return;
+                        const rule = PAGE_SESSION_RULES[CURRENT_PAGE] || 'all';
+                        const sessions = data.sessions || [];
+                        // Detect sprint weekend
+                        isSprintWeekend = sessions.some(s => {
+                            const code = (s.code || s);
+                            return code === 'SQ' || code === 'S' || code === 'SS';
+                        });
+                        // Filter based on page rule
+                        let filtered = sessions;
+                        if (rule === 'race_only') {
+                            filtered = sessions.filter(s => (s.code || s) === 'R');
+                        } else if (rule === 'race_sprint') {
+                            filtered = sessions.filter(s => ['R', 'S', 'SS'].includes(s.code || s));
+                        } else if (rule === 'no_selector') {
+                            const raceBar = document.getElementById('race_selector_bar');
+                            if (raceBar) raceBar.style.display = 'none';
+                            updateNavLinks();
+                            return;
+                        } else if (rule === 'none') {
+                            if (document.getElementById('session_selector_wrapper'))
+                                document.getElementById('session_selector_wrapper').style.display = 'none';
+                            updateNavLinks();
+                            return;
+                        }
+                        const target = desiredSession || "{{ selected_session }}";
+                        sel.innerHTML = '';
+                        let foundTarget = false;
+                        filtered.forEach(s => {
+                            const sName = s.name || s;
+                            const sCode = s.code || s;
+                            const opt = document.createElement('option');
+                            opt.value = sCode;
+                            opt.textContent = sName;
+                            if (sCode === target) { opt.selected = true; foundTarget = true; }
+                            sel.appendChild(opt);
+                        });
+                        if (!foundTarget && sel.options.length > 0) {
+                            // Try to find Race, else first
+                            let found = false;
+                            for (let o of sel.options) {
+                                if (o.value === 'R') { o.selected = true; found = true; break; }
+                            }
+                            if (!found) sel.options[0].selected = true;
+                        }
+                        if (sel.value) localStorage.setItem('selected_session', sel.value);
+                    } catch (e) {
+                        console.error('Session fetch error:', e);
+                    }
+                    applyPageRules(isSprintWeekend);
+                    updateNavLinks();
+                }
+                // ── Init ──────────────────────────────────────────────────
+                document.addEventListener('DOMContentLoaded', () => {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const urlSession = urlParams.get('session_type');
+                    const storedSession = localStorage.getItem('selected_session');
+                    const desiredSession = urlSession || storedSession || 'R';
+                    const yearEl = document.getElementById('sel_year');
+                    const roundEl = document.getElementById('sel_round');
+                    if (yearEl && roundEl) {
+                        updateSessions(desiredSession);
+                    }
+                    applyPageRules(isSprintWeekend);
+                });
+            </script>
+            {% block scripts %}{% endblock %}
+        </div> <!-- end main content -->
+    </div> <!-- end flex layout -->
 </body>
 </html>

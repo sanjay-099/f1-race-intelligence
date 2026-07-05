@@ -3523,8 +3523,6 @@ async def pipeline_status():
 
 # ── Health ────────────────────────────────────────────────
 
-
-
 @app.get("/health", tags=["System"])
 async def health():
     return {

@@ -5,49 +5,183 @@
     <h1 class="text-4xl font-bold mb-2" style="color:#FF1E1E;">🏎️ F1 Race Intelligence System</h1>
     <p class="text-gray-400 text-lg">Real-time race analytics powered by FastF1 telemetry + Machine Learning</p>
 </div>
+<!-- Race Info Card -->
 <div class="card p-4 mb-8 flex items-center justify-between">
     <div class="flex items-center gap-6">
-        <div><p class="text-gray-400 text-sm">Race</p><p class="text-white font-bold text-lg">{{ event_name }}</p></div>
+        <div>
+            <p class="text-gray-400 text-sm">Race</p>
+            <p class="text-white font-bold text-lg">{{ event_name }}</p>
+        </div>
         <div class="w-px h-10 bg-gray-700"></div>
-        <div><p class="text-gray-400 text-sm">Year</p><p class="text-white font-bold text-lg">{{ year }}</p></div>
+        <div>
+            <p class="text-gray-400 text-sm">Year</p>
+            <p class="text-white font-bold text-lg">{{ year }}</p>
+        </div>
         <div class="w-px h-10 bg-gray-700"></div>
-        <div><p class="text-gray-400 text-sm">Circuit</p><p class="text-white font-bold text-lg">{{ location }}</p></div>
+        <div>
+            <p class="text-gray-400 text-sm">Circuit</p>
+            <p class="text-white font-bold text-lg">{{ location }}</p>
+        </div>
         <div class="w-px h-10 bg-gray-700"></div>
-        <div><p class="text-gray-400 text-sm">Date</p><p class="text-white font-bold text-lg">{{ date }}</p></div>
+        <div>
+            <p class="text-gray-400 text-sm">Date</p>
+            <p class="text-white font-bold text-lg">{{ date }}</p>
+        </div>
     </div>
-    <div style="background:#14532d; color:#4ade80;" class="px-4 py-2 rounded-lg text-sm font-medium">✅ Data Loaded</div>
+    <div style="background:#14532d; color:#4ade80;" class="px-4 py-2 rounded-lg text-sm font-medium">
+        ✅ Data Loaded
+    </div>
 </div>
+<!-- Metrics -->
 <div class="grid grid-cols-4 gap-4 mb-8">
-    <div class="metric-card p-6 text-center"><p class="text-gray-400 text-sm mb-1">Total Laps</p><p class="text-3xl font-bold" style="color:#00d2ff;">{{ total_laps }}</p></div>
-    <div class="metric-card p-6 text-center"><p class="text-gray-400 text-sm mb-1">Drivers</p><p class="text-3xl font-bold" style="color:#00d2ff;">{{ total_drivers }}</p></div>
-    <div class="metric-card p-6 text-center"><p class="text-gray-400 text-sm mb-1">ML Models</p><p class="text-3xl font-bold" style="color:#00ff88;">3</p></div>
-    <div class="metric-card p-6 text-center"><p class="text-gray-400 text-sm mb-1">API Endpoints</p><p class="text-3xl font-bold" style="color:#00ff88;">5</p></div>
+    <div class="metric-card p-6 text-center">
+        <p class="text-gray-400 text-sm mb-1">Training Laps</p>
+        <p class="text-3xl font-bold" style="color:#00d2ff;">170,351</p>
+        <p class="text-gray-500 text-xs mt-1">Race laps, 2018–2026</p>
+    </div>
+    <div class="metric-card p-6 text-center">
+        <p class="text-gray-400 text-sm mb-1">Circuits Covered</p>
+        <p class="text-3xl font-bold" style="color:#00d2ff;">31</p>
+        <p class="text-gray-500 text-xs mt-1">All modern F1 circuits</p>
+    </div>
+    <div class="metric-card p-6 text-center">
+        <p class="text-gray-400 text-sm mb-1">Driver Embeddings</p>
+        <p class="text-3xl font-bold" style="color:#00ff88;">44</p>
+        <p class="text-gray-500 text-xs mt-1">PCA · 8 telemetry features</p>
+    </div>
+    <div class="metric-card p-6 text-center">
+        <p class="text-gray-400 text-sm mb-1">API Endpoints</p>
+        <p class="text-3xl font-bold" style="color:#00ff88;">15+</p>
+        <p class="text-gray-500 text-xs mt-1">FastAPI + REST</p>
+    </div>
 </div>
+<!-- Charts -->
 <div class="card p-6 mb-8">
     <h2 class="text-xl font-bold mb-4" style="color:#00d2ff;">🏆 Laps Completed Per Driver</h2>
     <div id="main_chart" style="width:100%;height:350px;"></div>
 </div>
-<div class="grid grid-cols-3 gap-4">
-    <a href="/telemetry" class="card p-6 hover:border-blue-500 border border-transparent transition-all cursor-pointer block">
-        <div class="text-3xl mb-3">📡</div>
-        <h3 class="text-white font-bold text-lg mb-2">Telemetry Analysis</h3>
-        <p class="text-gray-400 text-sm">Compare driver speed, throttle and gear data lap by lap</p>
-    </a>
-    <a href="/incidents" class="card p-6 hover:border-red-500 border border-transparent transition-all cursor-pointer block">
-        <div class="text-3xl mb-3">🚨</div>
-        <h3 class="text-white font-bold text-lg mb-2">Incident Detection</h3>
-        <p class="text-gray-400 text-sm">ML-powered anomaly detection across all 20 drivers</p>
-    </a>
-    <a href="/strategy" class="card p-6 hover:border-green-500 border border-transparent transition-all cursor-pointer block">
-        <div class="text-3xl mb-3">🎯</div>
-        <h3 class="text-white font-bold text-lg mb-2">Strategy Optimizer</h3>
-        <p class="text-gray-400 text-sm">Find the optimal pit window for any driver and strategy</p>
-    </a>
+<div class="card p-6 mb-8">
+    <h2 class="text-xl font-bold mb-4" style="color:#00d2ff;">🛞 Compound Usage Per Driver</h2>
+    <div id="compound_chart" style="width:100%;height:350px;"></div>
+</div>
+{% if heat_json %}
+<!-- Pace Heatmap -->
+<div class="mt-8">
+    <h2 class="text-xl font-bold mb-4" style="color:#00d2ff;">🌡️ Pace Heatmap — Lap-by-Lap</h2>
+    <p class="text-gray-400 text-sm mb-3">Color shows each driver's pace relative to their own average. Green = faster
+        than usual, Red = slower (SC laps, tyre deg, incidents).</p>
+    <div id="pace_heatmap" style="width:100%;height:500px;"></div>
+</div>
+{% endif %}
+<!-- Tech Stack Section -->
+<div class="card p-6 mb-8">
+    <h2 class="text-xl font-bold mb-6" style="color:#00d2ff;">⚙️ System Architecture</h2>
+    <div class="grid grid-cols-3 gap-4">
+        <!-- Data Layer -->
+        <div class="metric-card p-4">
+            <p class="font-bold mb-3" style="color:#fde68a;">📡 Data Layer</p>
+            <div class="flex flex-col gap-2">
+                <span class="text-gray-300 text-sm">🔹 FastF1 — FIA telemetry 2018–2026</span>
+                <span class="text-gray-300 text-sm">🔹 Real lap times, compounds, positions</span>
+                <span class="text-gray-300 text-sm">🔹 325,983 laps · 31 circuits · 8 seasons</span>
+                <span class="text-gray-300 text-sm">🔹 10.5 GB FastF1 cache · async parallel loading</span>
+            </div>
+        </div>
+        <!-- ML Layer -->
+        <div class="metric-card p-4">
+            <p class="font-bold mb-3" style="color:#fca5a5;">🧠 ML Layer</p>
+            <div class="flex flex-col gap-2">
+                <span class="text-gray-300 text-sm">🔹 XGBoost — tyre degradation (R²=0.962)</span>
+                <span class="text-gray-300 text-sm">🔹 XGBoost + Ridge — Quali→Race prediction</span>
+                <span class="text-gray-300 text-sm">🔹 IsolationForest — dual incident detection</span>
+                <span class="text-gray-300 text-sm">🔹 PCA — driver style embeddings (44 drivers)</span>
+                <span class="text-gray-300 text-sm">🔹 Multi-Agent LLM — Claude Sonnet 4.6</span>
+            </div>
+        </div>
+        <!-- Infrastructure -->
+        <div class="metric-card p-4">
+            <p class="font-bold mb-3" style="color:#86efac;">🚀 Infrastructure</p>
+            <div class="flex flex-col gap-2">
+                <span class="text-gray-300 text-sm">🔹 FastAPI + Jinja2 — backend + templates</span>
+                <span class="text-gray-300 text-sm">🔹 Plotly — interactive charts</span>
+                <span class="text-gray-300 text-sm">🔹 Tailwind CSS — responsive UI</span>
+                <span class="text-gray-300 text-sm">🔹 Docker — containerized deployment</span>
+                <span class="text-gray-300 text-sm">🔹 HuggingFace Spaces — cloud hosting</span>
+            </div>
+        </div>
+    </div>
+    <!-- Performance Metrics -->
+    <div class="grid grid-cols-4 gap-4 mt-4">
+        <div class="metric-card p-3 text-center">
+            <p class="text-gray-400 text-xs mb-1">Tire Deg MAE</p>
+            <p class="text-xl font-bold text-green-400">1.229s</p>
+            <p class="text-gray-500 text-xs">XGBoost · R²=0.962</p>
+        </div>
+        <div class="metric-card p-3 text-center">
+            <p class="text-gray-400 text-xs mb-1">Race Prediction</p>
+            <p class="text-xl font-bold text-green-400">~2.3 pos</p>
+            <p class="text-gray-500 text-xs">MAE · 1,083 training samples</p>
+        </div>
+        <div class="metric-card p-3 text-center">
+            <p class="text-gray-400 text-xs mb-1">Anomaly Detection</p>
+            <p class="text-xl font-bold text-green-400">53.7%</p>
+            <p class="text-gray-500 text-xs">PCA variance · driver embeddings</p>
+        </div>
+        <div class="metric-card p-3 text-center">
+            <p class="text-gray-400 text-xs mb-1">Data Coverage</p>
+            <p class="text-xl font-bold text-green-400">2018–2026</p>
+            <p class="text-gray-500 text-xs">8 seasons</p>
+        </div>
+    </div>
+</div>
+<!-- Portfolio Section -->
+<div class="card p-6 mb-8" style="border:1px solid #FF1E1E33;">
+    <h2 class="text-xl font-bold mb-2" style="color:#FF1E1E;">👨‍💻 About This System</h2>
+    <div class="flex items-start justify-between mb-4">
+        <p class="text-gray-400 text-sm">
+            Built by <span style="color:#00d2ff; font-weight:bold;">Sanjay Chowdary</span> —<br>
+            MS Data Science · University of Alabama at Birmingham<br>
+            FastAPI · XGBoost · scikit-learn · FastF1 · Claude AI · Docker
+        </p>
+        <div class="flex flex-col items-end gap-1">
+            <a href="https://github.com/sanjay-099/f1-race-intelligence" target="_blank"
+                class="text-gray-400 hover:text-white text-sm">
+                ⭐ View on GitHub
+            </a>
+            <a href="https://github.com/sanjay-099/f1-race-intelligence/blob/main/docs/F1_Race_Intelligence_Methodology.pdf"
+                target="_blank" class="text-blue-400 hover:underline text-sm">
+                📄 Methodology PDF
+            </a>
+        </div>
+    </div>
+    <div class="grid grid-cols-3 gap-3">
+        <div class="metric-card p-3 text-center">
+            <p class="text-gray-400 text-xs mb-1">Problem</p>
+            <p class="text-white text-sm font-bold">F1 strategy is black-box</p>
+            <p class="text-gray-500 text-xs mt-1">Teams guard data jealously</p>
+        </div>
+        <div class="metric-card p-3 text-center">
+            <p class="text-gray-400 text-xs mb-1">Solution</p>
+            <p class="text-white text-sm font-bold">Open-source intelligence</p>
+            <p class="text-gray-500 text-xs mt-1">Real FIA telemetry + ML</p>
+        </div>
+        <div class="metric-card p-3 text-center">
+            <p class="text-gray-400 text-xs mb-1">Impact</p>
+            <p class="text-white text-sm font-bold">Production-grade platform</p>
+            <p class="text-gray-500 text-xs mt-1">6 ML models · 15+ APIs · Multi-agent LLM</p>
+        </div>
+    </div>
 </div>
 {% endblock %}
 {% block scripts %}
 <script>
+    {% if heat_json %}
+    const heatData = {{ heat_json | safe }};
+    Plotly.react('pace_heatmap', heatData.data, heatData.layout);
+    {% endif %}
     const chartData = {{ chart_json | safe }};
     Plotly.react('main_chart', chartData.data, chartData.layout);
+    const chartData2 = {{ chart2_json | safe }};
+    Plotly.react('compound_chart', chartData2.data, chartData2.layout);
 </script>
 {% endblock %}

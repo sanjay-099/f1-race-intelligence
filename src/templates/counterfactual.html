@@ -4,11 +4,14 @@
 
   <div class="mb-4">
     <h1 class="text-3xl font-bold text-cyan-400">🔀 Counterfactual Analysis</h1>
-    <p class="text-gray-400 mt-1">What if the race had gone differently? Change variables and see the predicted outcome — {{ event_name }} {{ selected_year }}</p>
+    <p class="text-gray-400 mt-1">What if the race had gone differently? Change variables and see the predicted outcome
+      — {{ event_name }} {{ selected_year }}</p>
   </div>
 
   <div class="bg-yellow-900 border border-yellow-600 rounded-xl p-3 mb-6 text-yellow-300 text-xs">
-    ⚠️ Requires post-race model — load this race on the <a href="/predictions?year={{ selected_year }}&round={{ selected_round }}&session_type={{ selected_session }}" class="underline">Predictions page</a> first, then return here.
+    ⚠️ Requires post-race model — load this race on the <a
+      href="/predictions?year={{ selected_year }}&round={{ selected_round }}&session_type={{ selected_session }}"
+      class="underline">Predictions page</a> first, then return here.
   </div>
 
   <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -73,8 +76,7 @@
           </div>
         </div>
 
-        <button onclick="runCounterfactual()"
-          class="w-full py-3 rounded-xl font-bold text-white mt-2"
+        <button onclick="runCounterfactual()" class="w-full py-3 rounded-xl font-bold text-white mt-2"
           style="background:#FF1E1E;">
           🔀 Run Counterfactual
         </button>
@@ -125,80 +127,80 @@
 </div>
 
 <script>
-const CF_YEAR    = {{ selected_year }};
-const CF_ROUND   = {{ selected_round }};
-const CF_SESSION = "{{ selected_session }}";
-const GRID_MAP   = {{ grid_map | safe }};
+  const CF_YEAR = {{ selected_year }};
+  const CF_ROUND = {{ selected_round }};
+  const CF_SESSION = "{{ selected_session }}";
+  const GRID_MAP = {{ grid_map | safe }};
 
-function toggleInput(id) {
-  const el = document.getElementById(id);
-  const cb = document.getElementById('use_' + id.replace('cf_','').replace('_val',''));
-  el.disabled = !cb.checked;
-}
-
-function updateActuals() {
-  const drv = document.getElementById('cf_driver').value;
-  // Show actual grid position
-  if (GRID_MAP[drv]) {
-    document.getElementById('actual_grid').textContent = `actual: P${GRID_MAP[drv]}`;
-    document.getElementById('cf_grid_val').value = GRID_MAP[drv];
-  }
-}
-
-// Init
-updateActuals();
-
-async function runCounterfactual() {
-  const btn = document.querySelector('[onclick="runCounterfactual()"]');
-  btn.textContent = '⏳ Computing...';
-  btn.disabled = true;
-
-  const driver = document.getElementById('cf_driver').value;
-  const body   = {
-    year: CF_YEAR, round: CF_ROUND, session_type: CF_SESSION,
-    driver,
-    cf_grid:     document.getElementById('use_grid').checked     ? parseInt(document.getElementById('cf_grid_val').value)     : null,
-    cf_compound: document.getElementById('use_compound').checked ? document.getElementById('cf_compound_val').value           : null,
-    cf_pit_lap:  document.getElementById('use_pit').checked      ? parseInt(document.getElementById('cf_pit_val').value)      : null,
-    cf_stops:    document.getElementById('use_stops').checked    ? parseInt(document.getElementById('cf_stops_val').value)    : null,
-  };
-
-  const res  = await fetch('/api/counterfactual', {
-    method: 'POST', headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(body)
-  });
-  const data = await res.json();
-
-  btn.textContent = '🔀 Run Counterfactual';
-  btn.disabled = false;
-
-  if (data.error) {
-    alert(data.error);
-    return;
+  function toggleInput(id) {
+    const el = document.getElementById(id);
+    const cb = document.getElementById('use_' + id.replace('cf_', '').replace('_val', ''));
+    el.disabled = !cb.checked;
   }
 
-  document.getElementById('cf_waiting').style.display = 'none';
-  document.getElementById('cf_result').style.display  = 'block';
-
-  document.getElementById('res_actual').textContent = `P${data.actual_position}`;
-  document.getElementById('res_base').textContent   = `P${data.base_position}`;
-  document.getElementById('res_cf').textContent     = `P${data.cf_position}`;
-
-  const delta    = data.position_delta;
-  const deltaEl  = document.getElementById('res_delta');
-  if (delta > 0) {
-    deltaEl.textContent = `🟢 +${delta} positions gained in counterfactual scenario`;
-    deltaEl.className   = 'text-center text-lg font-bold mb-4 p-3 rounded-xl bg-green-900 text-green-400';
-  } else if (delta < 0) {
-    deltaEl.textContent = `🔴 ${delta} positions lost in counterfactual scenario`;
-    deltaEl.className   = 'text-center text-lg font-bold mb-4 p-3 rounded-xl bg-red-900 text-red-400';
-  } else {
-    deltaEl.textContent = '⚪ No change in predicted position';
-    deltaEl.className   = 'text-center text-lg font-bold mb-4 p-3 rounded-xl bg-gray-700 text-gray-300';
+  function updateActuals() {
+    const drv = document.getElementById('cf_driver').value;
+    // Show actual grid position
+    if (GRID_MAP[drv]) {
+      document.getElementById('actual_grid').textContent = `actual: P${GRID_MAP[drv]}`;
+      document.getElementById('cf_grid_val').value = GRID_MAP[drv];
+    }
   }
 
-  // Changes applied
-  document.getElementById('res_changes').innerHTML = Object.entries(data.changes).map(([key, val]) => `
+  // Init
+  updateActuals();
+
+  async function runCounterfactual() {
+    const btn = document.querySelector('[onclick="runCounterfactual()"]');
+    btn.textContent = '⏳ Computing...';
+    btn.disabled = true;
+
+    const driver = document.getElementById('cf_driver').value;
+    const body = {
+      year: CF_YEAR, round: CF_ROUND, session_type: CF_SESSION,
+      driver,
+      cf_grid: document.getElementById('use_grid').checked ? parseInt(document.getElementById('cf_grid_val').value) : null,
+      cf_compound: document.getElementById('use_compound').checked ? document.getElementById('cf_compound_val').value : null,
+      cf_pit_lap: document.getElementById('use_pit').checked ? parseInt(document.getElementById('cf_pit_val').value) : null,
+      cf_stops: document.getElementById('use_stops').checked ? parseInt(document.getElementById('cf_stops_val').value) : null,
+    };
+
+    const res = await fetch('/api/counterfactual', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json();
+
+    btn.textContent = '🔀 Run Counterfactual';
+    btn.disabled = false;
+
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
+
+    document.getElementById('cf_waiting').style.display = 'none';
+    document.getElementById('cf_result').style.display = 'block';
+
+    document.getElementById('res_actual').textContent = `P${data.actual_position}`;
+    document.getElementById('res_base').textContent = `P${data.base_position}`;
+    document.getElementById('res_cf').textContent = `P${data.cf_position}`;
+
+    const delta = data.position_delta;
+    const deltaEl = document.getElementById('res_delta');
+    if (delta > 0) {
+      deltaEl.textContent = `🟢 +${delta} positions gained in counterfactual scenario`;
+      deltaEl.className = 'text-center text-lg font-bold mb-4 p-3 rounded-xl bg-green-900 text-green-400';
+    } else if (delta < 0) {
+      deltaEl.textContent = `🔴 ${delta} positions lost in counterfactual scenario`;
+      deltaEl.className = 'text-center text-lg font-bold mb-4 p-3 rounded-xl bg-red-900 text-red-400';
+    } else {
+      deltaEl.textContent = '⚪ No change in predicted position';
+      deltaEl.className = 'text-center text-lg font-bold mb-4 p-3 rounded-xl bg-gray-700 text-gray-300';
+    }
+
+    // Changes applied
+    document.getElementById('res_changes').innerHTML = Object.entries(data.changes).map(([key, val]) => `
     <div class="flex items-center gap-2 text-sm">
       <span class="text-gray-400">${key}:</span>
       <span class="text-red-400 line-through">${val.from}</span>
@@ -207,38 +209,38 @@ async function runCounterfactual() {
     </div>
   `).join('');
 
-  // Full grid chart
-  document.getElementById('cf_grid_section').style.display = 'block';
-  const subject = data.grid_results.filter(d => d.is_subject);
-  const others  = data.grid_results.filter(d => !d.is_subject);
+    // Full grid chart
+    document.getElementById('cf_grid_section').style.display = 'block';
+    const subject = data.grid_results.filter(d => d.is_subject);
+    const others = data.grid_results.filter(d => !d.is_subject);
 
-  Plotly.react('cf_grid_chart', [
-    {
-      x: others.map(d => d.driver),
-      y: others.map(d => d.delta),
-      type: 'bar',
-      name: 'Other Drivers',
-      marker: { color: others.map(d => d.delta > 0 ? '#22c55e' : d.delta < 0 ? '#ef4444' : '#6b7280') },
-      hovertemplate: '%{x}<br>Position change: %{y}<extra></extra>'
-    },
-    {
-      x: subject.map(d => d.driver),
-      y: subject.map(d => d.delta),
-      type: 'bar',
-      name: driver,
-      marker: { color: '#ffd700', line: { color: '#fff', width: 2 } },
-      hovertemplate: '%{x}<br>Position change: %{y}<extra></extra>'
-    }
-  ], {
-    template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
-    height: 400, margin: { l: 60, r: 20, t: 20, b: 60 },
-    xaxis: { title: 'Driver', tickangle: -45 },
-    yaxis: { title: 'Position Change (positive = better)', zeroline: true },
-    barmode: 'overlay',
-    legend: { title: { text: 'Driver' } }
-  });
+    Plotly.react('cf_grid_chart', [
+      {
+        x: others.map(d => d.driver),
+        y: others.map(d => d.delta),
+        type: 'bar',
+        name: 'Other Drivers',
+        marker: { color: others.map(d => d.delta > 0 ? '#22c55e' : d.delta < 0 ? '#ef4444' : '#6b7280') },
+        hovertemplate: '%{x}<br>Position change: %{y}<extra></extra>'
+      },
+      {
+        x: subject.map(d => d.driver),
+        y: subject.map(d => d.delta),
+        type: 'bar',
+        name: driver,
+        marker: { color: '#ffd700', line: { color: '#fff', width: 2 } },
+        hovertemplate: '%{x}<br>Position change: %{y}<extra></extra>'
+      }
+    ], {
+      template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+      height: 400, margin: { l: 60, r: 20, t: 20, b: 60 },
+      xaxis: { title: 'Driver', tickangle: -45 },
+      yaxis: { title: 'Position Change (positive = better)', zeroline: true },
+      barmode: 'overlay',
+      legend: { title: { text: 'Driver' } }
+    });
 
-  document.getElementById('cf_grid_section').scrollIntoView({ behavior: 'smooth' });
-}
+    document.getElementById('cf_grid_section').scrollIntoView({ behavior: 'smooth' });
+  }
 </script>
 {% endblock %}

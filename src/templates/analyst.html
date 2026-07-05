@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mx-auto px-4 py-8 max-w-4xl">
+    <div class="mb-2">
+        <h1 class="text-3xl font-bold text-cyan-400">🤖 Race Analyst</h1>
+        <p class="text-gray-400 mt-1">{{ event_name }} · {{ selected_year }}</p>
+    </div>
+    <!-- Mode tabs -->
+    <div class="flex gap-2 mb-6 mt-4">
+        <button id="tab_quick" onclick="setMode('quick')" class="px-5 py-2 rounded-lg font-bold text-sm transition"
+            style="background:#00d2ff; color:#000;">
+            ⚡ Quick Analysis
+        </button>
+        <button id="tab_deep" onclick="setMode('deep')" class="px-5 py-2 rounded-lg font-bold text-sm transition"
+            style="background:#1f2937; color:#9ca3af;">
+            🧠 Deep Analysis (3 Agents)
+        </button>
+    </div>
+    <!-- Mode description -->
+    <div id="mode_desc" class="bg-gray-800 rounded-xl p-4 mb-5 text-xs text-gray-400 flex items-start gap-3">
+        <div id="mode_desc_icon" class="text-xl">⚡</div>
+        <div>
+            <div id="mode_desc_title" class="text-white font-bold text-sm mb-1">Quick Analysis</div>
+            <div id="mode_desc_text">Single Claude call with full race context. Fast, concise answers in ~3 seconds.
+            </div>
+        </div>
+    </div>
+    <!-- Agent architecture (deep mode only) -->
+    <div id="agent_arch" style="display:none;" class="bg-gray-800 rounded-xl p-5 mb-5 border border-gray-700">
+        <div class="flex items-center gap-4 flex-wrap justify-center">
+            <div class="text-center">
+                <div class="text-2xl mb-1">⚡</div>
+                <div class="text-white text-xs font-bold">Pace Agent</div>
+                <div class="text-gray-500 text-xs">Speed & lap times</div>
+            </div>
+            <div class="text-gray-600 text-xl">+</div>
+            <div class="text-center">
+                <div class="text-2xl mb-1">🔧</div>
+                <div class="text-white text-xs font-bold">Strategy Agent</div>
+                <div class="text-gray-500 text-xs">Tyres & pit stops</div>
+            </div>
+            <div class="text-gray-600 text-xl">+</div>
+            <div class="text-center">
+                <div class="text-2xl mb-1">🏎️</div>
+                <div class="text-white text-xs font-bold">Race Craft Agent</div>
+                <div class="text-gray-500 text-xs">Overtaking & incidents</div>
+            </div>
+            <div class="text-gray-600 text-xl">→</div>
+            <div class="text-center">
+                <div class="text-2xl mb-1">🎯</div>
+                <div class="text-white text-xs font-bold">Coordinator</div>
+                <div class="text-gray-500 text-xs">Synthesizes all agents</div>
+            </div>
+        </div>
+    </div>
+    <!-- Question input -->
+    <div class="bg-gray-800 rounded-xl p-5 mb-5">
+        <div class="flex gap-3">
+            <input id="question_input" type="text" placeholder="Ask about this race..."
+                class="flex-1 bg-gray-700 text-white rounded-lg px-4 py-3 text-sm border border-gray-600 focus:border-cyan-400 focus:outline-none"
+                onkeydown="if(event.key==='Enter') analyze()">
+            <button onclick="analyze()" id="analyze_btn"
+                class="px-6 py-3 rounded-lg font-bold text-white text-sm transition" style="background:#FF1E1E;">
+                Ask
+            </button>
+        </div>
+        <!-- Quick questions -->
+        <div class="mt-3 flex flex-wrap gap-2">
+            <span class="text-gray-500 text-xs pt-1">Quick:</span>
+            {% for q in [
+            "Who had the best race pace?",
+            "What was the key strategy decision?",
+            "Why did the leader win?",
+            "Who made the most overtakes?",
+            "What was the biggest incident?"
+            ] %}
+            <button onclick="document.getElementById('question_input').value='{{ q }}'"
+                class="text-xs px-3 py-1 rounded-full text-gray-400 hover:text-white transition"
+                style="background:#374151; border:1px solid #4b5563;">
+                {{ q }}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+    <!-- Loading -->
+    <div id="loading" style="display:none;" class="text-center py-10">
+        <div class="text-4xl mb-3">🤖</div>
+        <div class="text-white font-bold mb-2" id="loading_title">Analyzing...</div>
+        <div class="text-gray-400 text-sm" id="loading_sub">Processing race data</div>
+        <!-- Deep mode agent spinners -->
+        <div id="agent_spinners" style="display:none;" class="mt-5 flex justify-center gap-6">
+            <div class="text-center">
+                <div class="text-2xl">⚡</div>
+                <div class="text-xs text-gray-500 mt-1" id="spin_pace">Running...</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl">🔧</div>
+                <div class="text-xs text-gray-500 mt-1" id="spin_strategy">Running...</div>
+            </div>
+            <div class="text-center">
+                <div class="text-2xl">🏎️</div>
+                <div class="text-xs text-gray-500 mt-1" id="spin_craft">Running...</div>
+            </div>
+        </div>
+    </div>
+    <!-- Error -->
+    <div id="error_div" style="display:none;" class="bg-red-900 border border-red-600 rounded-xl p-5 text-center mb-4">
+        <div class="text-2xl mb-2">❌</div>
+        <div id="error_msg" class="text-red-300 text-sm"></div>
+    </div>
+    <!-- Quick result -->
+    <div id="quick_result" style="display:none;" class="bg-gray-800 rounded-xl p-6 mb-5">
+        <div class="flex items-center gap-2 mb-3">
+            <span class="text-xl">⚡</span>
+            <span class="text-white font-bold">Analysis</span>
+            <span class="ml-auto text-xs text-gray-500" id="quick_race"></span>
+        </div>
+        <div id="quick_answer" class="text-gray-200 text-sm leading-relaxed"></div>
+    </div>
+    <!-- Deep result -->
+    <div id="deep_result" style="display:none;">
+        <!-- Synthesis -->
+        <div class="rounded-xl p-6 mb-5" style="background:#1e3a5f; border:1px solid #3b82f6;">
+            <div class="flex items-center gap-2 mb-3">
+                <span class="text-xl">🎯</span>
+                <span class="text-white font-bold">Coordinator Synthesis</span>
+                <span class="ml-auto text-xs px-2 py-1 rounded-full text-blue-300"
+                    style="background:#1e40af33; border:1px solid #3b82f6;">Deep Analysis</span>
+            </div>
+            <div id="synthesis_text" class="text-gray-200 text-sm leading-relaxed"></div>
+        </div>
+        <!-- Agent panels -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+            <div class="bg-gray-800 rounded-xl p-5">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-lg">⚡</span>
+                    <span class="text-white font-bold text-sm">Pace Agent</span>
+                </div>
+                <div id="agent_pace" class="text-gray-300 text-xs leading-relaxed"></div>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-5">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-lg">🔧</span>
+                    <span class="text-white font-bold text-sm">Strategy Agent</span>
+                </div>
+                <div id="agent_strategy" class="text-gray-300 text-xs leading-relaxed"></div>
+            </div>
+            <div class="bg-gray-800 rounded-xl p-5">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-lg">🏎️</span>
+                    <span class="text-white font-bold text-sm">Race Craft Agent</span>
+                </div>
+                <div id="agent_craft" class="text-gray-300 text-xs leading-relaxed"></div>
+            </div>
+        </div>
+    </div>
+    <!-- Conversation history -->
+    <div id="history_section" style="display:none;" class="mt-4">
+        <h3 class="text-gray-400 font-bold text-sm mb-2">Previous Questions</h3>
+        <div id="history_list" class="space-y-2"></div>
+    </div>
+</div>
+<script>
+    const A_YEAR = {{ selected_year }};
+    const A_ROUND = {{ selected_round }};
+    const A_SESSION = "{{ selected_session }}";
+    let currentMode = 'quick';
+    let history = [];
+    const AGENT_MAP = {
+        'Pace Analyst': 'agent_pace',
+        'Strategy Analyst': 'agent_strategy',
+        'Race Craft Analyst': 'agent_craft',
+    };
+    const MODE_CONFIG = {
+        quick: {
+            icon: '⚡',
+            title: 'Quick Analysis',
+            text: 'Single Claude call with full race context. Fast, concise answers in ~3 seconds.',
+            btn: 'Ask'
+        },
+        deep: {
+            icon: '🧠',
+            title: 'Deep Analysis (3 Agents)',
+            text: '3 specialist agents run in parallel (pace, strategy, race craft), then a coordinator synthesizes their findings. Takes ~10-15 seconds but produces richer analysis.',
+            btn: 'Deep Analyze'
+        }
+    };
+    function setMode(mode) {
+        currentMode = mode;
+        const cfg = MODE_CONFIG[mode];
+        // Tab styling
+        document.getElementById('tab_quick').style.background = mode === 'quick' ? '#00d2ff' : '#1f2937';
+        document.getElementById('tab_quick').style.color = mode === 'quick' ? '#000' : '#9ca3af';
+        document.getElementById('tab_deep').style.background = mode === 'deep' ? '#8b5cf6' : '#1f2937';
+        document.getElementById('tab_deep').style.color = mode === 'deep' ? '#fff' : '#9ca3af';
+        // Mode description
+        document.getElementById('mode_desc_icon').textContent = cfg.icon;
+        document.getElementById('mode_desc_title').textContent = cfg.title;
+        document.getElementById('mode_desc_text').textContent = cfg.text;
+        document.getElementById('analyze_btn').textContent = cfg.btn;
+        // Architecture diagram
+        document.getElementById('agent_arch').style.display = mode === 'deep' ? 'block' : 'none';
+    }
+    async function analyze() {
+        const question = document.getElementById('question_input').value.trim();
+        if (!question) return;
+        // Reset UI
+        document.getElementById('quick_result').style.display = 'none';
+        document.getElementById('deep_result').style.display = 'none';
+        document.getElementById('error_div').style.display = 'none';
+        document.getElementById('loading').style.display = 'block';
+        document.getElementById('analyze_btn').disabled = true;
+        const isDeep = currentMode === 'deep';
+        document.getElementById('loading_title').textContent = isDeep ? 'Running 3 agents in parallel...' : 'Analyzing...';
+        document.getElementById('loading_sub').textContent = isDeep ? 'Pace · Strategy · Race Craft agents active' : 'Processing race data';
+        document.getElementById('agent_spinners').style.display = isDeep ? 'flex' : 'none';
+        if (isDeep) {
+            ['pace', 'strategy', 'craft'].forEach((a, i) => {
+                document.getElementById(`spin_${a}`).textContent = 'Running...';
+                document.getElementById(`spin_${a}`).style.color = '#9ca3af';
+                setTimeout(() => {
+                    document.getElementById(`spin_${a}`).textContent = '✅ Done';
+                    document.getElementById(`spin_${a}`).style.color = '#22c55e';
+                }, (i + 1) * 3000);
+            });
+            setTimeout(() => {
+                document.getElementById('loading_title').textContent = 'Coordinator synthesizing...';
+                document.getElementById('loading_sub').textContent = 'Combining all agent insights';
+            }, 9000);
+        }
+        try {
+            const res = await fetch('/analyst/ask', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    question: question,
+                    year: A_YEAR,
+                    round: A_ROUND,
+                    session_type: A_SESSION,
+                    mode: currentMode,
+                })
+            });
+            const data = await res.json();
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('analyze_btn').disabled = false;
+            document.getElementById('analyze_btn').textContent = MODE_CONFIG[currentMode].btn;
+            if (data.status === 'error') {
+                document.getElementById('error_div').style.display = 'block';
+                document.getElementById('error_msg').textContent = data.message;
+                return;
+            }
+            if (data.mode === 'quick') {
+                document.getElementById('quick_answer').textContent = data.answer;
+                document.getElementById('quick_race').textContent = data.race;
+                document.getElementById('quick_result').style.display = 'block';
+                history.unshift({ question, answer: data.answer, mode: 'quick' });
+            } else {
+                document.getElementById('synthesis_text').textContent = data.synthesis;
+                if (data.agents) {
+                    for (const agent of data.agents) {
+                        const id = AGENT_MAP[agent.name];
+                        if (id) document.getElementById(id).textContent = agent.analysis;
+                    }
+                }
+                document.getElementById('deep_result').style.display = 'block';
+                history.unshift({ question, answer: data.synthesis || '', mode: 'deep' });
+            }
+            renderHistory();
+            // Reset spinners
+            ['pace', 'strategy', 'craft'].forEach(a => {
+                document.getElementById(`spin_${a}`).textContent = 'Running...';
+                document.getElementById(`spin_${a}`).style.color = '';
+            });
+        } catch (e) {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('error_div').style.display = 'block';
+            document.getElementById('error_msg').textContent = e.message;
+            document.getElementById('analyze_btn').disabled = false;
+            document.getElementById('analyze_btn').textContent = MODE_CONFIG[currentMode].btn;
+        }
+    }
+    function renderHistory() {
+        if (history.length === 0) return;
+        document.getElementById('history_section').style.display = 'block';
+        document.getElementById('history_list').innerHTML = history.slice(0, 5).map((h, i) => `
+    <div class="bg-gray-800 rounded-lg p-3 cursor-pointer hover:bg-gray-700"
+      onclick="restoreHistory(${i})">
+      <div class="flex items-center gap-2 mb-1">
+        <span class="text-xs">${h.mode === 'deep' ? '🧠' : '⚡'}</span>
+        <span class="text-gray-400 text-xs">${h.question}</span>
+      </div>
+      <div class="text-gray-500 text-xs line-clamp-2">${(h.answer || '').slice(0, 120)}...</div>
+    </div>
+  `).join('');
+    }
+    function restoreHistory(i) {
+        const h = history[i];
+        document.getElementById('question_input').value = h.question;
+        if (h.mode === 'quick') {
+            setMode('quick');
+            document.getElementById('quick_answer').textContent = h.answer;
+            document.getElementById('quick_result').style.display = 'block';
+        } else {
+            setMode('deep');
+            document.getElementById('synthesis_text').textContent = h.answer;
+            document.getElementById('deep_result').style.display = 'block';
+        }
+    }
+    // Init
+    setMode('quick');
+</script>
+{% endblock %}

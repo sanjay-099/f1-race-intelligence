@@ -3,7 +3,8 @@
 <div class="container mx-auto px-4 py-8 max-w-7xl">
   <div class="mb-6">
     <h1 class="text-3xl font-bold text-cyan-400">🛞 Tyre Performance Lab</h1>
-    <p class="text-gray-400 mt-1">Compound degradation curves and performance analysis — {{ event_name }} {{ selected_year }}</p>
+    <p class="text-gray-400 mt-1">Compound degradation curves and performance analysis — {{ event_name }} {{
+      selected_year }}</p>
   </div>
 
   {% if error %}
@@ -28,7 +29,8 @@
   <!-- Degradation chart -->
   <div class="bg-gray-800 rounded-xl p-6 mb-8">
     <h2 class="text-xl font-bold text-white mb-2">📉 Degradation Curves</h2>
-    <p class="text-gray-400 text-sm mb-4">Average lap time vs tyre age per compound. Steeper slope = faster degradation.</p>
+    <p class="text-gray-400 text-sm mb-4">Average lap time vs tyre age per compound. Steeper slope = faster degradation.
+    </p>
     <div id="deg_chart" style="width:100%;height:450px;"></div>
   </div>
 
@@ -65,24 +67,24 @@
 </div>
 
 <script>
-const DEG_DATA = {{ deg_data | safe }};
+  const DEG_DATA = {{ deg_data | safe }};
 
-const traces = Object.entries(DEG_DATA).map(([compound, data]) => ({
-  x: data.tyre_life,
-  y: data.avg_time,
-  name: compound,
-  mode: 'lines+markers',
-  line: { color: data.color, width: 3 },
-  marker: { size: 6, color: data.color },
-  hovertemplate: `${compound}<br>Tyre Life: %{x} laps<br>Avg: %{y:.3f}s<extra></extra>`
-}));
+  const traces = Object.entries(DEG_DATA).map(([compound, data]) => ({
+    x: data.tyre_life,
+    y: data.avg_time,
+    name: compound,
+    mode: 'lines+markers',
+    line: { color: data.color, width: 3 },
+    marker: { size: 6, color: data.color },
+    hovertemplate: `${compound}<br>Tyre Life: %{x} laps<br>Avg: %{y:.3f}s<extra></extra>`
+  }));
 
-Plotly.react('deg_chart', traces, {
-  template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
-  height: 450, margin: { l: 60, r: 20, t: 20, b: 40 },
-  xaxis: { title: 'Tyre Age (laps)' },
-  yaxis: { title: 'Avg Lap Time (s)' },
-  legend: { title: { text: 'Compound' } }
-});
+  Plotly.react('deg_chart', traces, {
+    template: 'plotly_dark', paper_bgcolor: '#1f2937', plot_bgcolor: '#1f2937',
+    height: 450, margin: { l: 60, r: 20, t: 20, b: 40 },
+    xaxis: { title: 'Tyre Age (laps)' },
+    yaxis: { title: 'Avg Lap Time (s)' },
+    legend: { title: { text: 'Compound' } }
+  });
 </script>
 {% endblock %}
