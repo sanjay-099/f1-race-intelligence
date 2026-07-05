@@ -1,0 +1,9 @@
+data/cache/
+f1-env/
+__pycache__/
+*.pyc
+.git/
+.env
+.DS_Store
+notebooks/
+*.ipynb
